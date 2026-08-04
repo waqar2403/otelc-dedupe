@@ -31,7 +31,9 @@ fetch('/api/health').then((r) => r.json()).then((h) => {
     `corpus <b>${h.corpus}</b> items · indexed <b>${h.indexedAt.slice(0, 10)}</b> · ` +
     `retrievers <b>${h.retrievers.join(' + ')}</b> · judge ` +
     (h.judgeConfigured
-      ? `<b>${h.provider}</b> (${h.usedToday}/${h.dailyCap} today)`
+      ? `<b>${h.provider}</b>` +
+        (h.balance ? ` · balance <b>${h.balance.currency === 'USD' ? '$' : ''}${h.balance.total.toFixed(2)}</b>` : '') +
+        ` · ${h.usedToday}/${h.dailyCap} today`
       : `<span class="off">disabled — set the API key to enable verdicts</span>`);
 }).catch(() => { $('#health').textContent = 'server unreachable'; });
 
