@@ -72,6 +72,18 @@ $('#form').addEventListener('submit', async (e) => {
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ORDER = { duplicate: 0, subsumed_by: 1, subsumes: 2, series: 3, related: 4, unrelated: 5 };
 
+// Bands, not raw numbers. Each label states what was actually measured on the
+// 14-case labelled set (scripts/judge-eval.mjs) so the wording is backed by
+// evidence rather than asserted. A bare "Score: 542" tells a reader nothing.
+function band(L) {
+  if (L === null || L === undefined) return null;
+  if (L >= 90) return { k: 'high', label: 'very likely the same work', note: '7/7 correct at this level in the eval' };
+  if (L >= 70) return { k: 'mid', label: 'probably the same work', note: 'no eval cases landed here — treat with care' };
+  if (L >= 40) return { k: 'mid', label: 'genuinely uncertain', note: 'no eval cases landed here — read both yourself' };
+  if (L >= 10) return { k: 'low', label: 'probably distinct work', note: '0/7 were duplicates at this level' };
+  return { k: 'low', label: 'clearly distinct', note: '0/5 were duplicates at this level' };
+}
+
 function render(d) {
   if (!d.candidates?.length) {
     out.innerHTML = `<div class="summary clear"><strong>No significant overlap found.</strong>
@@ -82,7 +94,7 @@ function render(d) {
     (ORDER[a.judgement?.verdict] ?? 9) - (ORDER[b.judgement?.verdict] ?? 9) ||
     b.retrieval.fused - a.retrieval.fused);
 
-  const dups = items.filter((i) => ['duplicate', 'subsumed_by'].includes(i.judgement?.verdict));
+  const dups = items.filter((i) => (i.judgement?.likelihood ?? 0) >= 70);
   let head;
   if (d.verdictSource !== 'judge') {
     head = `<div class="summary warn"><strong>Retrieval only — no verdicts.</strong>
@@ -90,13 +102,14 @@ function render(d) {
       These are the closest items by keyword and file overlap, in rank order. Ranking alone
       cannot tell a duplicate from a deliberate series, so read them yourself.</div>`;
   } else if (dups.length) {
-    head = `<div class="summary warn"><strong>${dups.length} likely
-      ${dups.length === 1 ? 'match' : 'matches'} found.</strong>
-      Check ${dups.map((x) => `<a href="${x.url}">#${x.number}</a>`).join(', ')} before filing.
+    head = `<div class="summary warn"><strong>${dups.length} item${dups.length === 1 ? '' : 's'}
+      scored 70 or above</strong> for being the same work:
+      ${dups.map((x) => `<a href="${x.url}">#${x.number}</a> (${x.judgement.likelihood})`).join(', ')}.
+      Worth reading before you file. Nothing here is a ruling.
       <span class="mono">${d.usage ? `${d.usage.total_tokens} tok` : ''}</span></div>`;
   } else {
-    head = `<div class="summary clear"><strong>No duplicate found.</strong>
-      ${items.length} related items were checked and none is the same work.
+    head = `<div class="summary clear"><strong>Nothing scored above 70.</strong>
+      ${items.length} nearby items were assessed and none looks like the same work.
       <span class="mono">${d.usage ? `${d.usage.total_tokens} tok` : ''}</span></div>`;
   }
 
@@ -105,13 +118,15 @@ function render(d) {
     const state = i.state === 'OPEN' ? 'open' : i.merged ? 'merged' : 'closed';
     const from = Object.entries(i.retrieval.from)
       .map(([k, v]) => `${k}#${v.rank}`).join(' · ');
+    const b = band(j?.likelihood);
     return `<article class="card ${j?.verdict || ''}">
-      <h3>${j ? `<span class="verdict v-${j.verdict}">${j.verdict.replace('_', ' ')}</span>` : ''}
+      <h3>${b ? `<span class="score s-${b.k}">${j.likelihood}</span>` : ''}
         <a href="${i.url}" target="_blank" rel="noopener">#${i.number}</a> ${esc(i.title)}</h3>
       <div class="meta">${i.kind} · ${state} · ${esc(i.author)} · ${i.createdAt.slice(0, 10)}${
-        j ? ` · confidence ${j.confidence}%` : ''}</div>
-      ${j?.reason ? `<p class="reason">${esc(j.reason)}</p>` : ''}
-      <div class="why">matched by ${from}</div>
+        j ? ` · ${j.verdict.replace('_', ' ')}` : ''}</div>
+      ${b ? `<p class="reason"><strong>${b.label}.</strong> ${j.reason ? esc(j.reason) : ''}</p>
+             <div class="why">${b.note} · matched by ${from}</div>`
+          : `<div class="why">matched by ${from}</div>`}
     </article>`;
   }).join('');
 }

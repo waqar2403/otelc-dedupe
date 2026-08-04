@@ -35,8 +35,20 @@ Rules:
 4. Different files usually means different work, even with near-identical titles.
 5. Be conservative. Prefer "related" over "duplicate" when unsure. A wrong "duplicate" discourages a legitimate contribution.
 
+For each candidate also give "likelihood": your probability from 0 to 100 that a
+maintainer would close one of the two as redundant with the other. Use the full
+range and be honest about uncertainty:
+- 90-100 certain the same work
+- 70-89  probably the same, some doubt
+- 40-69  genuinely unsure, could go either way
+- 10-39  probably distinct work
+- 0-9    clearly distinct
+
+A deliberate series (different targets, same pattern) should score LOW even when
+the titles look nearly identical. That is the distinction that matters most here.
+
 Reply with JSON only, no prose:
-{"results":[{"number":<int>,"verdict":"<one of the verdicts>","confidence":<0-100>,"reason":"<one sentence, max 25 words>"}]}
+{"results":[{"number":<int>,"verdict":"<one of the verdicts>","likelihood":<0-100>,"reason":"<one sentence, max 25 words>"}]}
 Include every candidate exactly once. Reference candidates by their issue NUMBER, never by list position.`;
 
 function renderCandidate(c, bodyCap) {
@@ -134,7 +146,7 @@ export async function judge(proposed, candidates, opts = {}) {
     results.push({
       number: n,
       verdict: r.verdict,
-      confidence: Math.max(0, Math.min(100, Number(r.confidence) || 0)),
+      likelihood: Math.max(0, Math.min(100, Number(r.likelihood ?? r.confidence) || 0)),
       reason: String(r.reason || '').slice(0, 200),
     });
   }

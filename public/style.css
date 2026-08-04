@@ -73,3 +73,11 @@ footer{color:var(--dim);font-size:12px;padding:28px 20px 46px;line-height:1.7}
 .spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);
   border-top-color:var(--acc);border-radius:50%;animation:s .7s linear infinite;margin-right:7px}
 @keyframes s{to{transform:rotate(360deg)}}
+
+/* Likelihood score, shown instead of a hard verdict badge. */
+.score{display:inline-block;min-width:34px;text-align:center;font-size:12px;font-weight:700;
+  padding:3px 7px;border-radius:5px;margin-right:8px;vertical-align:1px;
+  font-family:ui-monospace,monospace}
+.s-high{background:var(--dup);color:#1a1015}
+.s-mid{background:var(--sub);color:#1a1509}
+.s-low{background:var(--un);color:#e6e9ef}
