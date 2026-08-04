@@ -80,7 +80,20 @@ export async function judge(proposed, candidates, opts = {}) {
       messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
       response_format: { type: 'json_object' },
       temperature: 0,
-      max_tokens: opts.maxTokens ?? 900,
+      // deepseek-v4-* reason by default and the reasoning shares the
+      // max_tokens budget with the answer. Measured on a 12-candidate prompt:
+      //   thinking on  -> 1678 reasoning + 315 answer = 1993 completion tokens
+      //   thinking off -> 0 reasoning + 322 answer     =  322 completion tokens
+      // Same 12 verdicts either way, ~6x the output cost. Off by default;
+      // set SCOUT_THINKING=1 to compare.
+      ...(opts.provider !== 'groq' && !process.env.SCOUT_THINKING
+        ? { thinking: { type: 'disabled' } }
+        : {}),
+      // deepseek-v4-* are REASONING models: max_tokens covers reasoning tokens
+      // AND the answer. At 900 the model spent all 900 on reasoning and
+      // returned empty content, so every verdict was silently dropped. The
+      // budget must leave room for both.
+      max_tokens: opts.maxTokens ?? 4000,
     }),
   });
 
@@ -93,9 +106,22 @@ export async function judge(proposed, candidates, opts = {}) {
   const data = await res.json();
   const raw = data.choices?.[0]?.message?.content || '{}';
 
+  // Empty content with a maxed-out completion means the reasoning budget ate
+  // the answer. Fail loudly: silently returning zero verdicts reads as
+  // "no duplicates found", which is the most dangerous wrong answer here.
+  const fin = data.choices?.[0]?.finish_reason;
+  if (!raw.trim() || raw.trim() === '{}') {
+    const e = new Error(
+      `judge returned empty content (finish_reason=${fin}, ` +
+      `reasoning_tokens=${data.usage?.completion_tokens_details?.reasoning_tokens ?? '?'}). ` +
+      'Raise maxTokens: reasoning tokens share the budget with the answer.');
+    e.code = 'EMPTY';
+    throw e;
+  }
+
   let parsed;
   try { parsed = JSON.parse(raw); }
-  catch { const e = new Error('judge returned non-JSON'); e.code = 'BAD_JSON'; throw e; }
+  catch { const e = new Error(`judge returned non-JSON (finish_reason=${fin})`); e.code = 'BAD_JSON'; throw e; }
 
   // Validate rather than cast. apicurio-scout's `JSON.parse(x) as GroqReport`
   // is how a malformed reply becomes a silent wrong answer.

@@ -98,3 +98,22 @@ first report are **open PRs duplicating already-merged work** (#811 vs merged #8
 Retrieval, tiering, eval and report are done and measured. Not built: the LLM judge
 and any web UI. Whether those are worth building depends on whether maintainers find
 the report useful, which is the cheapest way to find out.
+
+## Gotcha: DeepSeek v4 reasoning tokens
+
+`deepseek-v4-flash` and `-pro` are reasoning models, and **reasoning tokens share the
+`max_tokens` budget with the answer**. At `max_tokens: 900` the model spent all 900 on
+reasoning and returned *empty content*, so every verdict was silently dropped and the
+app reported "no duplicates found" — the most dangerous possible wrong answer.
+
+Measured on a 12-candidate prompt:
+
+| | reasoning | completion | verdicts |
+|---|---|---|---|
+| `thinking: {type:"disabled"}` | 0 | 322 | 12 |
+| `reasoning_effort: "low"` | 1714 | 2000 (truncated) | parse failure |
+| default, `max_tokens: 8000` | 1678 | 1993 | 12 |
+
+Thinking is disabled by default: same verdict count at ~6x lower output cost. Set
+`SCOUT_THINKING=1` to re-enable and compare. The judge now throws on empty content
+rather than returning zero results.
