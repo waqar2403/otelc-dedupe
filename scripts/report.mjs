@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { embedText } from './lib/text.mjs';
+import { tokenize } from "./lib/text.mjs";
 import { search, isNoiseFile } from './lib/search.mjs';
 import { initEmbedder, embed } from './lib/embed.mjs';
 
@@ -59,8 +60,139 @@ function isLinkedPair(a, b) {
   return declares(a, b) || declares(b, a);
 }
 
-// Pair-level scoring. Retrieval decides WHAT to look at; these rules decide
-// how strongly to present it. Thresholds are tuned against eval/dataset.json.
+const normTitle = (t) => t.replace(/^\w+(\([^)]*\))?:\s*/, '').toLowerCase().trim();
+
+// Vocabulary of instrumentation targets, derived from the repo's own
+// instrumentation/ tree rather than hardcoded. Two items naming DIFFERENT
+// targets are a deliberate series, not a duplicate: #201/#202/#203 are
+// otelhttptrace / otelhttp / otelgrpc, and #948 vs #931 is gRPC vs HTTP.
+const TARGETS = new Set(['grpc', 'http', 'sql', 'https']);
+for (const it of corpus) {
+  for (const f of it.files || []) {
+    const m = f.match(/^instrumentation\/(.+?)\/(?:v\d+\/)?[^/]+$/);
+    if (!m) continue;
+    for (const seg of m[1].split('/')) {
+      const s = seg.toLowerCase().replace(/\.(com|org|io|net)$/, '');
+      if (s.length > 2 && !/^v\d+$/.test(s) && !s.includes('.')) TARGETS.add(s);
+    }
+  }
+}
+
+/** Target names mentioned in a title. */
+function targetsIn(item) {
+  const out = new Set();
+  for (const t of tokenize(normTitle(item.title))) if (TARGETS.has(t)) out.add(t);
+  return out;
+}
+
+function titleSim(a, b) {
+  const ta = new Set(tokenize(normTitle(a.title)));
+  const tb = new Set(tokenize(normTitle(b.title)));
+  if (!ta.size || !tb.size) return 0;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  return inter / (ta.size + tb.size - inter);
+}
+
+const daysApart = (a, b) =>
+  Math.abs(new Date(a.createdAt) - new Date(b.createdAt)) / 86400000;
+
+/**
+ * DUPLICATE likelihood: is this the same underlying work?
+ * Distinct from collision risk. A maintainer closes one of these.
+ */
+function duplicateScore(a, b, hit) {
+  const ev = [];
+  let s = 0;
+  const ts = titleSim(a, b);
+  const sameAuthor = a.author === b.author;
+
+  if (normTitle(a.title) === normTitle(b.title)) { s += 0.6; ev.push('identical titles'); }
+  else if (ts >= 0.6) { s += 0.45; ev.push(`title overlap ${(ts * 100).toFixed(0)}%`); }
+  else if (ts >= 0.4) { s += 0.25; ev.push(`title overlap ${(ts * 100).toFixed(0)}%`); }
+
+  const bmRank = hit.from.bm25?.rank;
+  if (bmRank === 1) { s += 0.25; ev.push('top lexical match'); }
+  else if (bmRank <= 3) { s += 0.15; ev.push(`lexical rank ${bmRank}`); }
+  else if (bmRank <= 20) { s += 0.05; ev.push(`lexical rank ${bmRank}`); }
+
+  // The self-refile pattern: one person files the same thing twice, days apart.
+  // Both genuine self-duplicates in this repo (#903/#916, #790/#939) look
+  // exactly like this. The earlier same-author rule DEMOTED these, which was
+  // backwards - it is the strongest duplicate signal available.
+  // Gated on lexical rank, not title similarity. #903 and #916 describe the
+  // same bug with only ~21% title overlap ("GetKeyData/SetKeyData/HasKeyData
+  // panics" vs "HookContext KeyData methods"), so a title threshold misses
+  // them. BM25 reads the body and ranks them adjacent.
+  if (sameAuthor && (ts >= 0.4 || bmRank <= 5)) {
+    const d = daysApart(a, b);
+    if (d <= 14) { s += 0.3; ev.push(`same author, ${d.toFixed(0)}d apart (self-refile)`); }
+    else { s += 0.1; ev.push('same author'); }
+  }
+
+  // An open item duplicating already-landed work is the most actionable
+  // finding there is: the maintainer just closes it.
+  if (a.state === 'OPEN' && b.state !== 'OPEN' && ts >= 0.4) {
+    s += 0.2; ev.push(b.merged ? 'counterpart already MERGED' : 'counterpart already closed');
+  }
+
+  // Different named targets => deliberate series, not duplication. Overrides
+  // the self-refile boost, which otherwise scores these 100.
+  // Each side naming its own rare, specific term means they address different
+  // things. Rarity comes from the BM25 IDF table, so it needs no vocabulary:
+  //   #201 "otelhttptrace" vs #202 "otelhttp"
+  //   #947 "grpc"          vs #931 "http"
+  // Both look like self-refiles by title overlap alone; the discriminating
+  // token is what separates a series from a duplicate.
+  const setA = new Set(tokenize(normTitle(a.title)));
+  const setB = new Set(tokenize(normTitle(b.title)));
+  const onlyA = [...setA].filter((t) => !setB.has(t));
+  const onlyB = [...setB].filter((t) => !setA.has(t));
+  const rare = (toks) =>
+    toks.filter((t) => (idx.bm25.df[t] ?? 0) > 0 && idx.bm25.df[t] <= 25 && t.length >= 4);
+  // Only the explicit sibling-target case is penalised. A broader
+  // "each side has an exclusive rare term" rule was tried and reverted: it
+  // removed #947/#931 (a real series) but also #903/#916 and #790/#939, which
+  // are verified true duplicates. Their titles genuinely differ in wording
+  // while describing the same bug, which is what a duplicate looks like.
+  // Separating those two cases needs semantics, not term statistics - it is
+  // the judge's job, and this scorer deliberately favours recall.
+  void rare;
+  const tA = onlyA.filter((t) => TARGETS.has(t));
+  const tB = onlyB.filter((t) => TARGETS.has(t));
+  if (tA.length && tB.length) {
+    s -= 0.35;
+    ev.push(`different targets (${tA.join(',')} vs ${tB.join(',')}) - likely a series`);
+  }
+
+  // For PRs, an identical changed-file set is near-conclusive: it is the same
+  // edit. This is what separates #909/#853 (same two files, real duplicate)
+  // from #948/#931 (same author and shape, different test files).
+  if (a.kind === 'PR' && b.kind === 'PR') {
+    const { j } = fileJaccard(a, b);
+    if (j >= 0.99) { s += 0.25; ev.push('identical changed-file set'); }
+    else if (j === 0) { s -= 0.2; ev.push('no shared files'); }
+  }
+  return { score: Math.max(0, Math.min(1, s)), ev };
+}
+
+/**
+ * COLLISION risk: different work, same lines, will conflict on merge.
+ * A maintainer sequences these rather than closing either.
+ */
+function collisionScore(a, b) {
+  if (a.kind !== 'PR' || b.kind !== 'PR') return { score: 0, ev: [] };
+  if (a.state !== 'OPEN' || b.state !== 'OPEN') return { score: 0, ev: [] };
+  const { j, shared, weight } = fileJaccard(a, b);
+  if (shared.length === 0) return { score: 0, ev: [] };
+  const ev = [`${shared.length} shared file${shared.length > 1 ? 's' : ''}: ${shared.slice(0, 3).join(', ')}${shared.length > 3 ? ', …' : ''}`];
+  // One shared file is weak evidence on its own (#725/#487 share only README.md).
+  let s = shared.length >= 2 ? 0.5 + 0.4 * j : 0.25 * j;
+  if (weight / shared.length >= 4) { s += 0.1; ev.push('rarely-touched files'); }
+  return { score: Math.min(1, s), ev };
+}
+
+// Legacy single-axis classifier, retained for the older tiered view.
 function classify(a, b, hit) {
   if (isLinkedPair(a, b)) return null;
   const { j, shared, weight } = fileJaccard(a, b);
@@ -137,29 +269,31 @@ for (const item of openItems) {
     if (other.state !== 'OPEN' && other.kind === 'PR' && !other.merged) continue;
     const key = [item.number, other.number].sort((x, y) => x - y).join('-');
     if (seen.has(key)) continue;
-    const c = classify(item, other, h);
-    if (!c) continue;
+    if (isLinkedPair(item, other)) continue;
     seen.add(key);
-    clusters.set(key, { a: item, b: other, ...c, fused: h.score });
+    const dup = duplicateScore(item, other, h);
+    const col = collisionScore(item, other);
+    if (dup.score < 0.35 && col.score < 0.5) continue;
+    clusters.set(key, { a: item, b: other, dup, col, fused: h.score });
   }
 }
 process.stderr.write('\n');
 
-const TIERS = { high: [], medium: [], low: [] };
-for (const c of clusters.values()) TIERS[c.tier].push(c);
-for (const t of Object.values(TIERS)) t.sort((x, y) => y.fused - x.fused);
+const all = [...clusters.values()];
+const dups = all.filter((c) => c.dup.score >= 0.35).sort((x, y) => y.dup.score - x.dup.score);
+const cols = all
+  .filter((c) => c.col.score >= 0.5 && c.dup.score < 0.6)
+  .sort((x, y) => y.col.score - x.col.score);
 
-const line = (c) => {
-  const st = (i) => (i.state === 'OPEN' ? 'open' : i.merged ? 'merged' : 'closed');
-  return `| [#${c.a.number}](${url(c.a.number)}) ${c.a.kind} ${st(c.a)} | [#${c.b.number}](${url(c.b.number)}) ${c.b.kind} ${st(c.b)} | ${c.evidence.join('; ')} |
-| ${c.a.title.slice(0, 70)} | ${c.b.title.slice(0, 70)} | |`;
+const st = (i) => (i.state === 'OPEN' ? 'open' : i.merged ? 'merged' : 'closed');
+const row = (c, which) => {
+  const sc = which === 'dup' ? c.dup : c.col;
+  return `| **${(sc.score * 100).toFixed(0)}** | [#${c.a.number}](${url(c.a.number)}) ${c.a.kind} ${st(c.a)}<br>${c.a.title.slice(0, 64)} | [#${c.b.number}](${url(c.b.number)}) ${c.b.kind} ${st(c.b)}<br>${c.b.title.slice(0, 64)} | ${sc.ev.join('; ')} |`;
 };
-
-const section = (name, rows, blurb) =>
-  `## ${name} (${rows.length})\n\n${blurb}\n\n` +
-  (rows.length
-    ? `| A | B | evidence |\n|---|---|---|\n${rows.map(line).join('\n')}\n`
-    : '_none_\n');
+const table = (rows, which) =>
+  rows.length
+    ? `| score | A | B | evidence |\n|---:|---|---|---|\n${rows.map((c) => row(c, which)).join('\n')}\n`
+    : '_none_\n';
 
 const md = `# otelc-scout backfill report
 
@@ -175,9 +309,21 @@ Fetched ${cf.fetchedAt.slice(0, 10)}, generated ${new Date().toISOString().slice
 > needs a human read. Tiers reflect signal strength, not confidence that a pair
 > is a duplicate.
 
-${section('High signal', TIERS.high, 'Identical normalised titles, or near-total changed-file overlap between two PRs.')}
-${section('Medium signal', TIERS.medium, 'Substantial file overlap, top lexical rank, or a same-author pair that would otherwise be high.')}
-${section('Low signal', TIERS.low, 'Partial overlap. Expect a high proportion of legitimate distinct work here.')}
+## Likely duplicates (${dups.length})
+
+Same underlying work. The action is usually to close one and link it to the other.
+Scored on title similarity, lexical rank, the same-author self-refile pattern, and
+whether the counterpart has already landed.
+
+${table(dups, 'dup')}
+
+## Merge collisions (${cols.length})
+
+Different work touching the same lines. Nothing to close here: these need
+**sequencing**, because whichever merges second will need a rebase. Listed
+separately because the action is different from a duplicate.
+
+${table(cols, 'col')}
 
 ---
 
@@ -196,5 +342,5 @@ Known limits, measured in \`npm run eval\`:
 `;
 
 writeFileSync(join(ROOT, 'REPORT.md'), md);
-console.log(`high=${TIERS.high.length} medium=${TIERS.medium.length} low=${TIERS.low.length}`);
+console.log(`likely-duplicates=${dups.length} merge-collisions=${cols.length}`);
 console.log('wrote REPORT.md');
