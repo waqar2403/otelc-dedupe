@@ -119,3 +119,29 @@ export async function judge(proposed, candidates, opts = {}) {
     dropped: (parsed.results || []).length - results.length,
   };
 }
+
+/**
+ * DeepSeek exposes the remaining prepaid balance. Surfacing it means the
+ * operator can see the ceiling rather than trust it, and the server can stop
+ * calling before the balance is gone (a 402 mid-request is a worse UX than
+ * a clean refusal).
+ */
+export async function getBalance(apiKey = process.env.DEEPSEEK_API_KEY) {
+  if (!apiKey) return null;
+  try {
+    const r = await fetch('https://api.deepseek.com/user/balance', {
+      headers: { authorization: `Bearer ${apiKey}`, accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const b = j.balance_infos?.[0];
+    if (!b) return null;
+    return {
+      currency: b.currency,
+      total: Number(b.total_balance),
+      granted: Number(b.granted_balance),
+      toppedUp: Number(b.topped_up_balance),
+      available: !!j.is_available,
+    };
+  } catch { return null; }
+}
