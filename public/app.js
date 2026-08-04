@@ -27,14 +27,9 @@ Proposal: add producer and consumer hooks emitting messaging.* semantic conventi
 
 // ---- health ---------------------------------------------------------------
 fetch('/api/health').then((r) => r.json()).then((h) => {
-  $('#health').innerHTML =
-    `corpus <b>${h.corpus}</b> items · indexed <b>${h.indexedAt.slice(0, 10)}</b> · ` +
-    `retrievers <b>${h.retrievers.join(' + ')}</b> · judge ` +
-    (h.judgeConfigured
-      ? `<b>${h.provider}</b>` +
-        (h.balance ? ` · balance <b>${h.balance.currency === 'USD' ? '$' : ''}${h.balance.total.toFixed(2)}</b>` : '') +
-        ` · ${h.usedToday}/${h.dailyCap} today`
-      : `<span class="off">disabled — set the API key to enable verdicts</span>`);
+  $('#health').innerHTML = h.judgeConfigured
+    ? `<b>${h.usedToday}</b> of <b>${h.dailyCap}</b> checks used today`
+    : `<span class="off">scoring disabled — no API key configured, showing keyword matches only</span>`;
 }).catch(() => { $('#health').textContent = 'server unreachable'; });
 
 // ---- form -----------------------------------------------------------------
@@ -87,7 +82,7 @@ function band(L) {
 function render(d) {
   if (!d.candidates?.length) {
     out.innerHTML = `<div class="summary clear"><strong>No significant overlap found.</strong>
-      Nothing in the ${d.corpusSize || 947}-item corpus looks close to this. Looks safe to file.</div>`;
+      Nothing already filed looks close to this. Looks safe to file.</div>`;
     return;
   }
   const items = [...d.candidates].sort((a, b) =>
