@@ -295,7 +295,7 @@ const table = (rows, which) =>
     ? `| score | A | B | evidence |\n|---:|---|---|---|\n${rows.map((c) => row(c, which)).join('\n')}\n`
     : '_none_\n';
 
-const md = `# otelc-scout backfill report
+const md = `# otelc-prior-art backfill report
 
 Repo: \`${REPO}\`
 Corpus: **${corpus.length} items** (${corpus.filter((i) => i.kind === 'ISSUE').length} issues, ${corpus.filter((i) => i.kind === 'PR').length} PRs), open **and** closed.

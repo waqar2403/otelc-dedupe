@@ -1,119 +1,120 @@
-# otelc-scout
+# prior art
 
-Duplicate and overlap detection for
-[`open-telemetry/opentelemetry-go-compile-instrumentation`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation).
+Finds work that already exists in
+[`open-telemetry/opentelemetry-go-compile-instrumentation`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation)
+before you file a duplicate.
 
-Batch tool. No server, no API keys, no per-request cost. Run it, read `REPORT.md`.
+Two ways to use it:
 
 ```bash
-npm run all      # fetch -> index -> eval -> report
+npm run report    # batch: scan every open item, write REPORT.md
+npm run serve     # web UI on http://localhost:3000
 ```
 
-## Why this shape
+No dependencies. Node 20+.
 
-The repo has 159 open items and a maintainer-confirmed duplicate problem: kakkoyun
-closed [#512](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/512)
-as *"Duplicate of #161"* on 2026-07-23, and
+## Why
+
+The repo has a confirmed duplicate problem. A maintainer closed
+[#512](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/512)
+as *"Duplicate of #161"*, and
 [#817](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/817)
 was filed one day later as the third instance of the same bug. #161 is still open.
 
-This started as a plan for a pre-submission web app with an LLM judge. Two
-measurements killed that design:
+The batch report also found three open items duplicating work that had **already been
+merged** — #842, #905 and #909 all restate a fix that landed in #844 and #853.
 
-1. **Retrieval is easy here.** At 947 documents, BM25 with camelCase identifier
-   expansion gets 7/7 on the labelled positive set *and* passes the vocabulary-gap
-   gate (#817 → #161 at rank 13). The embedding retriever that justified the whole
-   hybrid architecture turned out not to be load-bearing.
-2. **Rejection is hard.** 16 of 30 labelled negative pairs surface in the top 5.
-   Ranking cannot tell "same file, different bug" from "same bug". A tool that
-   showed a contributor a flat duplicate verdict would be wrong most of the time,
-   against a base rate where genuine duplicates are maybe 5-10% of submissions.
+## How it works
 
-So the output is a tiered report for maintainers to read, not a verdict for
-contributors to obey. Tiers reflect signal strength, not confidence.
-
-## How matching works
-
-Three retrievers fused by Reciprocal Rank Fusion (`score = Σ 1/(60 + rank)`),
-which needs no score normalisation between an unbounded BM25 score and a 0-1 cosine.
-
-| Retriever | Catches |
-|---|---|
-| **BM25** over title+body, title boosted 3x, camelCase expanded | exact identifiers; `isSetup` matches `isSetup()` |
-| **Changed-file Jaccard** (PRs) | collisions with no textual similarity at all |
-| **MiniLM embeddings** (optional) | vocabulary gaps, if any survive tokenisation |
-
-Embeddings are optional and off by default (`npm run index -- --no-embed` is the
-default path). Install `@huggingface/transformers` to enable; the eval prints
-which retrievers were active so a lexical run is never mistaken for a hybrid one.
-
-### Precision rules
-
-Learned from false positives in the first run, all encoded in `scripts/report.mjs`:
-
-- **Issue ↔ its own PR is excluded.** They share title and files by design. Detected
-  via `closingIssuesReferences` plus a `Fixes #N` body regex.
-- **One shared file is never enough alone.** #725 and #487 both touch only
-  `README.md` (Jaccard 1.0) and are unrelated. Needs a second file or lexical support.
-- **Merged counterparts need lexical support.** #789 and #476 share `optimize.go`
-  because everyone editing that function does. That is file history, not duplication.
-- **Same-author pairs are demoted, never dropped.** Deliberate one-bug-per-PR series
-  (linodego, anthropic) look identical to duplication by file overlap. But the two
-  genuine self-duplicates in this repo (#903/#916, #790/#939) are also same-author.
-
-## Eval
-
-```bash
-npm run eval                    # with whatever retrievers are built
-npm run eval -- --lexical-only  # prove what BM25 alone does
+```
+GitHub GraphQL  ->  all issues + PRs, open and closed  ->  data/index.json
+                                                              |
+proposed text  ->  BM25  +  changed-file overlap  ->  RRF  ->  top 12
+                                                              |
+                                                     language model
+                                                              |
+                                          likelihood 0-100 per candidate
 ```
 
-Two things the original plan's eval could not measure:
+**Retrieval** is BM25 over title and body, with camelCase identifiers expanded so
+`isSetup` matches `isSetup()`, plus changed-file Jaccard for pull requests. Fused by
+Reciprocal Rank Fusion, which combines an unbounded BM25 score with a 0-1 similarity
+without any normalisation to tune.
 
-- **The vocabulary-gap case is gated on its own.** Under an aggregate
-  `recall@20 >= 7/8`, a build with a completely broken embedder still passes,
-  because the other targets share literal identifiers (`file.Close`, `TestRunCmd`,
-  `KeyData`). That gate cannot fail, so it tested nothing.
-- **30 labelled negatives, not 2.** False positives are the failure that costs the
-  project something: telling a first-time contributor their issue is a duplicate
-  when it is not, in a repo where only 16% of July's new contributors returned in August.
+**Scoring** is a language model, because ranking cannot do it. Hand-written rules that
+correctly rejected one deliberate series also rejected #903/#916 and #790/#939, which
+are real duplicates. Telling a series apart from a duplicate needs meaning, not term
+statistics.
+
+Closed and merged items are indexed on purpose. Some of the most useful findings are
+open items duplicating work that already landed, which an open-only comparison cannot see.
+
+## Measured
+
+Judge, 14 labelled cases from this repo's real history:
+
+| | n | mean likelihood | range |
+|---|---|---|---|
+| Real duplicates | 7 | 93.6 | 90–95 |
+| Deliberately distinct | 7 | 10.0 | 10–10 |
+
+Ranges are disjoint. Any threshold between 15 and 89 gives 100% accuracy.
+About $0.0006 per check.
+
+Retrieval, separately: 7/7 recall on the labelled positives, and it retrieves
+#161 for #817 despite near-disjoint vocabulary.
+
+```bash
+npm run eval          # retrieval: hard gates, recall, false-positive load
+npm run judge-eval    # scoring: separation and calibration (needs an API key)
+```
+
+## Limits
+
+- The model is bimodal. Across 28 calls it only ever returned 95, 90, 10 or 5. The
+  40–89 bands were empty, so there is **no evidence about how it scores genuinely
+  ambiguous pairs**. The UI says so rather than implying a 60 means something.
+- All 14 eval cases are clear-cut and hand-picked.
+- It only helps people who use it. Someone filing straight on GitHub is not covered;
+  the batch report is what catches those, after the fact.
+- Rate limiting is in-process and resets on restart. Fine locally, not sufficient
+  for a public deployment.
+
+## Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | — | Enables scoring. Without it you get retrieval only. |
+| `PA_PROVIDER` | `deepseek` | `deepseek` or `groq` |
+| `PA_MODEL` | `deepseek-v4-flash` | Model override |
+| `PA_THINKING` | off | Enable model reasoning. Costs ~2.4x for no measured accuracy gain. |
+| `PORT` | `3000` | |
+
+Never commit a key. Pass it in the environment, or send `x-api-key` per request.
+
+### A note on DeepSeek v4
+
+`deepseek-v4-*` are reasoning models and **reasoning tokens share the `max_tokens`
+budget with the answer**. At `max_tokens: 900` the model spent all 900 reasoning and
+returned empty content, so every score was dropped and the tool reported "nothing
+found" — the most dangerous possible wrong answer. Reasoning is disabled by default
+and the client now throws on empty content instead of returning nothing.
 
 ## Layout
 
 ```
-scripts/fetch.mjs      GraphQL, full pagination, issues + PRs, open AND closed
-scripts/index.mjs      BM25/IDF table + optional embeddings -> data/index.json
-scripts/report.mjs     batch backfill -> REPORT.md
-scripts/eval.mjs       hard gates, recall, false-positive load
-scripts/lib/           text, bm25, embed, search (RRF)
-eval/dataset.json      labelled ground truth, verified against the live API
+server.mjs             web UI + /api/analyze
+scripts/fetch.mjs      GraphQL, full pagination, open and closed
+scripts/index.mjs      BM25/IDF table -> data/index.json
+scripts/report.mjs     batch scan -> REPORT.md
+scripts/eval.mjs       retrieval eval
+scripts/judge-eval.mjs scoring eval
+eval/dataset.json      labelled ground truth
 ```
 
-Closed items are indexed on purpose. Two of the five high-signal findings in the
-first report are **open PRs duplicating already-merged work** (#811 vs merged #856,
-#852 vs merged #774), which an open-only comparison structurally cannot see.
+The index refreshes nightly via GitHub Actions, and the server reloads it on change
+without a restart.
 
-## Status
+## Licence
 
-Retrieval, tiering, eval and report are done and measured. Not built: the LLM judge
-and any web UI. Whether those are worth building depends on whether maintainers find
-the report useful, which is the cheapest way to find out.
-
-## Gotcha: DeepSeek v4 reasoning tokens
-
-`deepseek-v4-flash` and `-pro` are reasoning models, and **reasoning tokens share the
-`max_tokens` budget with the answer**. At `max_tokens: 900` the model spent all 900 on
-reasoning and returned *empty content*, so every verdict was silently dropped and the
-app reported "no duplicates found" — the most dangerous possible wrong answer.
-
-Measured on a 12-candidate prompt:
-
-| | reasoning | completion | verdicts |
-|---|---|---|---|
-| `thinking: {type:"disabled"}` | 0 | 322 | 12 |
-| `reasoning_effort: "low"` | 1714 | 2000 (truncated) | parse failure |
-| default, `max_tokens: 8000` | 1678 | 1993 | 12 |
-
-Thinking is disabled by default: same verdict count at ~6x lower output cost. Set
-`SCOUT_THINKING=1` to re-enable and compare. The judge now throws on empty content
-rather than returning zero results.
+MIT

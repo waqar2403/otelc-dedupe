@@ -1,18 +1,23 @@
 {
-  "name": "otelc-scout",
+  "name": "otelc-prior-art",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Duplicate and overlap detection for open-telemetry/opentelemetry-go-compile-instrumentation",
+  "description": "Finds existing work in opentelemetry-go-compile-instrumentation before you file a duplicate",
   "scripts": {
     "fetch": "node scripts/fetch.mjs",
     "index": "node scripts/index.mjs",
     "eval": "node scripts/eval.mjs",
     "report": "node scripts/report.mjs",
-    "all": "npm run fetch && npm run index && npm run eval && npm run report"
+    "all": "npm run fetch && npm run index && npm run eval && npm run report",
+    "serve": "node server.mjs",
+    "judge-eval": "node scripts/judge-eval.mjs"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "^3.0.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
 }

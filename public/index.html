@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>otelc-scout</title>
+<title>prior art</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
-  <h1>otelc<span>-scout</span></h1>
-  <p class="sub">Check a proposed issue or PR against everything already filed in
+  <h1>prior art</h1>
+  <p class="sub">Check a proposed issue or pull request against everything already filed in
     <code>opentelemetry-go-compile-instrumentation</code>.</p>
   <div id="health" class="health">checking…</div>
 </header>
@@ -32,14 +32,14 @@
         placeholder="Paste what you were about to file. The more detail, the better the match."></textarea>
     </label>
     <div class="actions">
-      <button type="submit" id="go">Check for duplicates</button>
+      <button type="submit" id="go">Search prior art</button>
       <span class="hint" id="counter">0 / 4000</span>
     </div>
   </form>
 
   <div id="examples" class="examples">
     <span>Try a known case:</span>
-    <button type="button" data-ex="dup">a real duplicate</button>
+    <button type="button" data-ex="dup">work already merged</button>
     <button type="button" data-ex="series">a deliberate series</button>
     <button type="button" data-ex="new">genuinely new work</button>
   </div>
@@ -48,9 +48,9 @@
 </main>
 
 <footer>
-  Retrieval is BM25 + changed-file overlap fused by RRF. Verdicts come from an LLM judge
-  because scoring rules provably cannot separate a series from a duplicate.
-  <strong>Candidates, not verdicts</strong> — read the linked items before acting.
+  Keyword and changed-file retrieval, then a language model scores how likely each
+  match is the same work. Scores are a starting point, not a ruling: open the linked
+  items and judge for yourself before deciding anything.
 </footer>
 
 <script src="/app.js"></script>
