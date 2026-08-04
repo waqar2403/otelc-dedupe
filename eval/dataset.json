@@ -1,0 +1,49 @@
+{
+  "note": "Ground truth from this repo's real history. Verified against the live API on 2026-08-04.",
+  "hardGates": [
+    {
+      "id": "vocabulary-gap",
+      "query": 817,
+      "mustRetrieve": [161],
+      "why": "kakkoyun closed #512 as 'Duplicate of #161' on 2026-07-23; #817 was filed 2026-07-24. #161 says 'isSetup - Check if setup phase is already done', #817 says 'isSetup() is unimplemented and always returns false'. Near-disjoint vocabulary. This is the ONLY positive in the set that lexical matching cannot get, so it is gated on its own rather than averaged away."
+    }
+  ],
+  "positives": [
+    { "query": 817, "mustRetrieve": [161, 512], "label": "isSetup chain, maintainer-confirmed" },
+    { "query": 905, "mustRetrieve": [842, 870, 876], "label": "file.Close() cluster" },
+    { "query": 939, "mustRetrieve": [790], "label": "Windows TestRunCmd, same author re-filed" },
+    { "query": 916, "mustRetrieve": [903], "label": "HookContext KeyData, same author re-filed" }
+  ],
+  "negatives": [
+    { "pair": [882, 788], "why": "same function canFlattenTJump, genuinely different bugs (false-positive match vs unnamed-param panic)" },
+    { "pair": [885, 879], "why": "same instrumentation, different attributes" },
+    { "pair": [885, 872], "why": "linodego series by one author, distinct bugs" },
+    { "pair": [879, 872], "why": "linodego series by one author, distinct bugs" },
+    { "pair": [873, 880], "why": "linodego PRs, distinct fixes, deliberate one-bug-per-PR series" },
+    { "pair": [880, 888], "why": "linodego PRs, distinct fixes" },
+    { "pair": [873, 888], "why": "linodego PRs, distinct fixes" },
+    { "pair": [772, 805], "why": "anthropic PRs by one author: status code vs unparseable model" },
+    { "pair": [860, 867], "why": "file.Close pattern, different files (extract.go vs shared.go)" },
+    { "pair": [860, 877], "why": "file.Close pattern, different files (extract.go vs profile.go)" },
+    { "pair": [867, 877], "why": "os.Getwd vs profile.go close, unrelated call sites" },
+    { "pair": [871, 909], "why": "file.Close pattern, store.go vs importcfg.go" },
+    { "pair": [877, 909], "why": "file.Close pattern, profile.go vs importcfg.go" },
+    { "pair": [909, 932], "why": "same file importcfg.go, different bugs (close error vs scanner limit)" },
+    { "pair": [864, 876], "why": "os.Getwd error vs file.Close errors, different defect classes" },
+    { "pair": [667, 923], "why": "e2e test requests for different targets (Gin+Redis vs MongoDB)" },
+    { "pair": [923, 947], "why": "e2e test requests for different targets (MongoDB vs gRPC->SQL)" },
+    { "pair": [756, 766], "why": "different AST bugs by one author" },
+    { "pair": [766, 739], "why": "stripGenericTypes vs has_directive filter" },
+    { "pair": [813, 886], "why": "decl rule panic vs struct rule mismatch, different rule types" },
+    { "pair": [798, 813], "why": "collectArguments blank identifier vs decl rule kind, different code paths" },
+    { "pair": [827, 865], "why": "openai SSE chunk drop vs empty-model span, different defects" },
+    { "pair": [894, 910], "why": "OTEL_LOG_LEVEL casing vs GLS span tracker capacity" },
+    { "pair": [903, 910], "why": "KeyData assertion vs GLS tracker, both pkg-level but unrelated" },
+    { "pair": [820, 780], "why": "gocql ObserveConnect bug vs cassandra instrumentation request" },
+    { "pair": [758, 753], "why": "manual+auto coexistence vs SIGTERM handler" },
+    { "pair": [934, 925], "why": "IPv6 DSN parsing vs kafka UTF-8 key, different instrumentations" },
+    { "pair": [912, 922], "why": "CGO dir parsing vs importcfg fingerprint mismatch" },
+    { "pair": [777, 717], "why": "version-gated skip on local path vs malformed version range" },
+    { "pair": [833, 761], "why": "test coverage requests for different packages" }
+  ]
+}
