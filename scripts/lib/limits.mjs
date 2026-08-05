@@ -82,9 +82,15 @@ function memCheck(ip, caps, day) {
 }
 
 // ---- redis-over-REST -------------------------------------------------------
+// A slow store must not become a slow page. Without this the counter read sits
+// unbounded in front of the response and a stalled connection shows up as a
+// blank counter after several seconds.
+const KV_TIMEOUT_MS = Number(process.env.OTELC_KV_TIMEOUT_MS || 3000);
+
 async function pipeline(commands) {
   const res = await fetch(`${KV_URL}/pipeline`, {
     method: 'POST',
+    signal: AbortSignal.timeout(KV_TIMEOUT_MS),
     headers: { authorization: `Bearer ${KV_TOKEN}`, 'content-type': 'application/json' },
     body: JSON.stringify(commands),
   });

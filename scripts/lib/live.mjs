@@ -142,6 +142,16 @@ export async function getDelta(base, opts = {}) {
     return { items: [], disabled: true, fetchedAt: null, truncated: false, error: null };
   }
   if (cached.data && cached.key === key && Date.now() - cached.at < ttl) return cached.data;
+
+  // Callers that only want to describe the tail, not search it, must never pay
+  // for a GitHub round trip. /api/health was doing exactly that, which put a
+  // 1-2s network hop (6s worst case) in front of the page's first paint on
+  // every cold instance.
+  if (opts.cachedOnly) {
+    if (cached.data && cached.key === key) return cached.data;
+    return { items: [], fetchedAt: null, truncated: false, error: null, disabled: false, pending: true };
+  }
+
   if (inflight) return inflight;
 
   const token = resolveToken(opts.token);

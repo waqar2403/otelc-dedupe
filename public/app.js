@@ -56,6 +56,12 @@ function showFreshness(f) {
       so items filed since ${day} are missing.</span>`;
     return;
   }
+  // Not yet fetched on this instance. Saying "checked never" would read as
+  // broken; the layer is on, it just populates on the first search.
+  if (f.pending) {
+    el.innerHTML = `snapshot ${day} · live index on, refreshes with your first check`;
+    return;
+  }
   const bits = [`snapshot ${day}`, `live checked ${ago(f.checkedAt)}`];
   if (f.added || f.updated) bits.push(`<b>+${f.added}</b> new, <b>${f.updated}</b> updated since`);
   else bits.push('nothing new since');
@@ -65,9 +71,14 @@ function showFreshness(f) {
 
 fetch('/api/health').then((r) => r.json()).then((h) => {
   CORPUS = h.corpus;
-  $('#health').innerHTML = h.judgeConfigured
-    ? `<b>${h.usedToday ?? '?'}</b> of <b>${h.dailyCap}</b> checks used today`
-    : `<span class="off">scoring disabled — no API key configured, showing keyword matches only</span>`;
+  // A missing counter means the store read failed, not that the number is
+  // zero. Showing "?" advertised an outage the user can do nothing about and
+  // that does not affect their check; report the cap alone instead.
+  $('#health').innerHTML = !h.judgeConfigured
+    ? `<span class="off">scoring disabled — no API key configured, showing keyword matches only</span>`
+    : h.usedToday === null || h.usedToday === undefined
+      ? `up to <b>${h.dailyCap}</b> checks a day, free`
+      : `<b>${h.usedToday}</b> of <b>${h.dailyCap}</b> checks used today`;
   showFreshness(h.live);
 }).catch(() => { $('#health').textContent = 'server unreachable'; });
 

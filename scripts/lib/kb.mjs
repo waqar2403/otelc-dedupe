@@ -164,6 +164,9 @@ const stripUndefined = (o) => {
 export async function getStore(opts = {}) {
   const b = getBase();
   const delta = await getDelta(b.meta, opts);
+  // A cachedOnly caller must not overwrite the folded store built from a real
+  // fetch, or a health poll would evict the live tail the next search needs.
+  if (opts.cachedOnly && delta.pending && merged) return merged;
 
   // Cheap identity for "has the tail changed": count plus the newest timestamp
   // GitHub reported. Re-folding 947 posting lists on every request would be
@@ -182,6 +185,9 @@ export async function getStore(opts = {}) {
       error: delta.error,
       truncated: delta.truncated,
       checkedAt: delta.fetchedAt,
+      // This instance has not fetched the tail yet. Not an error and not a
+      // stale answer: the next search populates it.
+      pending: !!delta.pending,
       changed: delta.items.length,
       added: store.added,
       updated: store.updated,

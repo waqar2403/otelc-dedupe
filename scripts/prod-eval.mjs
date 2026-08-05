@@ -65,7 +65,9 @@ console.log(`\nproduction accuracy  ${BASE}\n`);
 const h = await (await fetch(`${BASE}/api/health`)).json();
 console.log(`  commit ${h.commit || '?'}  corpus ${h.corpus}  judge ${h.judgeConfigured ? 'on' : 'OFF'}  limiter ${h.limiter}`);
 if (!h.judgeConfigured) { console.error('\n  judge is not configured on this deployment; scores would be meaningless.\n'); process.exit(1); }
-console.log(`  live: +${h.live?.added ?? 0} new, ${h.live?.updated ?? 0} updated since ${h.indexedAt?.slice(0, 10)}\n`);
+console.log(h.live?.pending
+  ? `  live: tail not yet fetched on this instance; the first check below populates it\n`
+  : `  live: +${h.live?.added ?? 0} new, ${h.live?.updated ?? 0} updated since ${h.indexedAt?.slice(0, 10)}\n`);
 
 const scored = [];
 let selfOk = 0, selfTotal = 0, retrievalMiss = 0, tokens = 0;
