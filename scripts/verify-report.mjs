@@ -94,6 +94,20 @@ for (const a of anchors) {
   for (const p of pairs.filter((x) => x.a === a)) {
     const v = verdicts.find((x) => x.number === p.b);
     const row = { ...p, judge: v?.likelihood ?? null, verdict: v?.verdict ?? null, reason: v?.reason ?? '' };
+
+    // An issue and the PR that implements it are the same work, and the judge
+    // correctly says so - but the action is "merge the PR", not "close one as a
+    // duplicate". isLinkedPair only catches GitHub's closing keywords; #801
+    // references #745 as a bare "#745" and slipped through. Any PR that
+    // mentions the issue's number at all is linked work, not accidental
+    // duplication, and must not appear on a list captioned "close these".
+    const A = byNum.get(p.a), B = byNum.get(p.b);
+    const mentions = (pr, iss) =>
+      pr?.kind === 'PR' && iss?.kind === 'ISSUE' && new RegExp(`#${iss.number}\\b`).test(pr.body || '');
+    if (mentions(A, B) || mentions(B, A)) {
+      dropped.push({ ...row, verdict: 'implements (linked work)' });
+      continue;
+    }
     // subsumes/subsumed_by are duplicates too: one covers the other's work.
     const isDup = row.judge !== null && row.judge >= MIN_JUDGE
       && ['duplicate', 'subsumed_by', 'subsumes'].includes(row.verdict);
