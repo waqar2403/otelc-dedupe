@@ -9,6 +9,7 @@
     "index": "node scripts/index.mjs",
     "eval": "node scripts/eval.mjs",
     "report": "node scripts/report.mjs",
+    "components": "node scripts/components.mjs",
     "all": "npm run fetch && npm run index && npm run eval && npm run report",
     "serve": "node server.mjs",
     "dev": "node server.mjs",
