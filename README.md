@@ -120,29 +120,37 @@ real ceiling. `/api/health` reports `limiter: "memory"` when that is the case, a
 
 ## Measured
 
-Judge, 14 labelled cases from this repo's real history:
+14 labelled cases from this repo's real history, replayed **against the deployed
+endpoint** rather than the library, so retrieval caps, the short-circuit and the
+live layer are all in the path:
 
 | | n | mean likelihood | range |
 |---|---|---|---|
-| Real duplicates | 7 | 93.6 | 90–95 |
-| Deliberately distinct | 7 | 10.0 | 10–10 |
+| Real duplicates | 7 | 92.1 | 85–100 |
+| Deliberately distinct | 7 | 10.0 | 5–15 |
 
-Ranges are disjoint. Any threshold between 15 and 89 gives 100% accuracy.
-About $0.0006 per check.
+Ranges are disjoint, separation 82 points, **14/14 correct at the ≥70 cut the UI
+uses**. Retrieval reached the target in 14/14, and every item scored ≥70 against
+itself — a positive control that fails loudly if anything upstream of the judge
+breaks. $0.0084 for the whole run.
 
-Retrieval, separately: 7/7 recall on the labelled positives, and it retrieves
-#161 for #817 despite near-disjoint vocabulary.
+These are the same 14 cases the scorer was developed against, and all of them are
+clear-cut. 100% here is evidence the deployment works, not that the accuracy
+generalises.
 
 ```bash
-npm run eval          # retrieval: hard gates, recall, false-positive load
-npm run judge-eval    # scoring: separation and calibration (needs an API key)
+npm run eval                                     # retrieval: hard gates, recall
+npm run judge-eval                               # scoring, via the provider directly
+npm run prod-eval -- https://your-app.vercel.app  # the deployed endpoint, end to end
 ```
 
 ## Limits
 
-- The model is bimodal. Across 28 calls it only ever returned 95, 90, 10 or 5. The
-  40–89 bands were empty, so there is **no evidence about how it scores genuinely
-  ambiguous pairs**. The UI says so rather than implying a 60 means something.
+- The model is close to bimodal. It was previously only ever seen returning 95, 90,
+  10 or 5; the production run widened that to 100, 95, 90, 85, 15, 10 and 5, so it
+  does use intermediate values — but **40–69 is still empty across every run**.
+  There is no evidence about how it scores genuinely ambiguous pairs, and the UI
+  says so rather than implying a 60 means something.
 - All 14 eval cases are clear-cut and hand-picked.
 - It only helps people who use it. Someone filing straight on GitHub is not covered;
   the batch report is what catches those, after the fact.

@@ -123,17 +123,19 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const ORDER = { duplicate: 0, subsumed_by: 1, subsumes: 2, series: 3, related: 4, unrelated: 5 };
 
 // Bands, not raw numbers. Each label states what was actually measured on the
-// 14-case labelled set (scripts/judge-eval.mjs) so the wording is backed by
-// evidence rather than asserted. A bare "Score: 542" tells a reader nothing.
+// 14-case labelled set, so the wording is backed by evidence rather than
+// asserted. A bare "Score: 542" tells a reader nothing.
+//
+// Figures below are from `npm run prod-eval` against this deployment: 7 real
+// duplicates scored 85-100, 7 deliberately distinct pairs scored 5-15, ranges
+// disjoint, 14/14 correct at the >=70 cut this UI uses.
 function band(L) {
   if (L === null || L === undefined) return null;
-  if (L >= 90) return { k: 'high', label: 'very likely the same work', note: '7/7 correct at this level in the eval' };
-  if (L >= 70) return { k: 'mid', label: 'probably the same work', note: 'no eval cases landed here — treat with care' };
-  if (L >= 40) return { k: 'mid', label: 'genuinely uncertain', note: 'no eval cases landed here — read both yourself' };
-  if (L >= 10) return { k: 'low', label: 'probably distinct work', note: '0/7 were duplicates at this level' };
-  // The 14-case eval never produced a score below 10, so there is nothing
-  // measured to report here. Saying "0/5" implied evidence that does not exist.
-  return { k: 'low', label: 'clearly distinct', note: 'no eval cases landed here' };
+  if (L >= 90) return { k: 'high', label: 'very likely the same work', note: '6/6 were duplicates at this level' };
+  if (L >= 70) return { k: 'mid', label: 'probably the same work', note: 'only one case has landed here; it was a duplicate' };
+  if (L >= 40) return { k: 'mid', label: 'genuinely uncertain', note: 'no case has ever landed here — read both yourself' };
+  if (L >= 10) return { k: 'low', label: 'probably distinct work', note: '0/6 were duplicates at this level' };
+  return { k: 'low', label: 'clearly distinct', note: '0/1 was a duplicate at this level' };
 }
 
 function render(d) {

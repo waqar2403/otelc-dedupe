@@ -13,6 +13,7 @@
     "serve": "node server.mjs",
     "dev": "node server.mjs",
     "judge-eval": "node scripts/judge-eval.mjs",
+    "prod-eval": "node scripts/prod-eval.mjs",
     "selftest": "node scripts/selftest.mjs"
   },
   "optionalDependencies": {

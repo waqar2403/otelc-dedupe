@@ -1,0 +1,19 @@
+{
+  "note": "Labelled pairs from this repo's real history. want=true means a maintainer would close one as redundant with the other. Read by scripts/judge-eval.mjs (library) and scripts/prod-eval.mjs (deployed endpoint).",
+  "cases": [
+    { "q": 909, "t": 853, "want": true,  "why": "identical changed-file set, #853 already merged" },
+    { "q": 905, "t": 853, "want": true,  "why": "issue for work already merged" },
+    { "q": 842, "t": 844, "want": true,  "why": "issue whose own PR merged" },
+    { "q": 852, "t": 774, "want": true,  "why": "same 2-line docs fix, #774 merged" },
+    { "q": 916, "t": 903, "want": true,  "why": "same author re-filed KeyData panic" },
+    { "q": 939, "t": 790, "want": true,  "why": "same author re-filed Windows TestRunCmd" },
+    { "q": 818, "t": 659, "want": true,  "why": "competing isSetup implementations" },
+    { "q": 948, "t": 931, "want": false, "why": "gRPC vs HTTP e2e - deliberate series" },
+    { "q": 202, "t": 201, "want": false, "why": "otelhttp vs otelhttptrace - different targets" },
+    { "q": 883, "t": 789, "want": false, "why": "same function, different bugs (collision not duplicate)" },
+    { "q": 880, "t": 873, "want": false, "why": "linodego one-bug-per-PR series" },
+    { "q": 932, "t": 909, "want": false, "why": "same file, scanner limit vs close error" },
+    { "q": 805, "t": 772, "want": false, "why": "anthropic series by one author" },
+    { "q": 947, "t": 924, "want": false, "why": "gRPC vs HTTP e2e issues" }
+  ]
+}

@@ -252,10 +252,12 @@ replays #817's exact text. Paraphrasing the same bug in my own words retrieved
 canonical open issue. The vocabulary-gap case is genuinely hard and one gate is
 thin evidence that it is solved.
 
-**The judge is bimodal.** Across 28 calls it returned only 95, 90, 10 or 5. The
-40-89 bands are empty, so there is no evidence about how it scores ambiguous
-pairs. The UI says so, which is the right call, but it means the 0-100 scale is
-really a 4-point scale wearing a costume.
+**The judge is close to bimodal.** It had been seen returning only 95, 90, 10 or
+5 across 28 calls. Replaying the labelled set against the deployment widened that
+to 100, 95, 90, 85, 15, 10 and 5 — so the scale is finer than a 4-point scale
+wearing a costume, but **40-69 is still empty across every run recorded**. There
+is no evidence about how it scores a genuinely ambiguous pair, and one case
+landing at 85 is the only data point above 15 and below 90. The UI says so.
 
 **14 eval cases, all hand-picked and clear-cut.** Disjoint ranges on 14 easy
 cases is weaker evidence than the "any threshold between 15 and 89 gives 100%
