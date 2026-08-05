@@ -12,6 +12,7 @@ import { embedText } from './lib/text.mjs';
 import { tokenize } from "./lib/text.mjs";
 import { search, isNoiseFile } from './lib/search.mjs';
 import { initEmbedder, embed } from './lib/embed.mjs';
+import { makeRules, isLinkedPair, normTitle, titleSim, daysApart } from './lib/rules.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const cf = JSON.parse(readFileSync(join(ROOT, 'data/corpus.json'), 'utf8'));
@@ -25,172 +26,10 @@ const REPO = `${cf.owner}/${cf.name}`;
 const url = (n) => `https://github.com/${REPO}/issues/${n}`;
 const openItems = corpus.filter((i) => i.state === 'OPEN');
 
-// How many PRs touch each file. `docs/configuration.md` and `README.md` are
-// touched by dozens, so sharing one of them is near-zero evidence; a file
-// touched by two PRs is strong evidence. Same IDF logic as BM25, applied to paths.
-const fileDF = new Map();
-for (const it of corpus) {
-  for (const f of new Set((it.files || []).filter((x) => !isNoiseFile(x)))) {
-    fileDF.set(f, (fileDF.get(f) || 0) + 1);
-  }
-}
-const NPR = corpus.filter((i) => i.kind === 'PR').length;
-const fileIdf = (f) => Math.log(1 + NPR / (1 + (fileDF.get(f) || 0)));
+// Duplicate and collision scoring live in lib/rules.mjs so the same rules can
+// be measured head-to-head against the judge (scripts/rules-vs-judge.mjs).
+const { duplicateScore, collisionScore, fileJaccard, fileIdf } = makeRules(corpus);
 const COMMON_FILE_IDF = 3.0; // below this a shared file is not evidence on its own
-
-function fileJaccard(a, b) {
-  const fa = new Set((a.files || []).filter((f) => !isNoiseFile(f)));
-  const fb = new Set((b.files || []).filter((f) => !isNoiseFile(f)));
-  if (!fa.size || !fb.size) return { j: 0, shared: [], weight: 0 };
-  const shared = [...fa].filter((f) => fb.has(f));
-  const weight = shared.reduce((s, f) => s + fileIdf(f), 0);
-  return { j: shared.length / (fa.size + fb.size - shared.length), shared, weight };
-}
-
-/** True when one item is the PR that closes the other, or vice versa. */
-function isLinkedPair(a, b) {
-  const declares = (pr, iss) => {
-    if (pr.kind !== 'PR' || iss.kind !== 'ISSUE') return false;
-    if ((pr.closes || []).includes(iss.number)) return true;
-    // closingIssuesReferences only picks up GitHub's recognised syntax; many
-    // PRs write it loosely, so match the text too.
-    return new RegExp(`\\b(fix(e[sd])?|close[sd]?|resolve[sd]?)\\s*:?\\s*#${iss.number}\\b`, 'i')
-      .test(pr.body || '');
-  };
-  return declares(a, b) || declares(b, a);
-}
-
-const normTitle = (t) => t.replace(/^\w+(\([^)]*\))?:\s*/, '').toLowerCase().trim();
-
-// Vocabulary of instrumentation targets, derived from the repo's own
-// instrumentation/ tree rather than hardcoded. Two items naming DIFFERENT
-// targets are a deliberate series, not a duplicate: #201/#202/#203 are
-// otelhttptrace / otelhttp / otelgrpc, and #948 vs #931 is gRPC vs HTTP.
-const TARGETS = new Set(['grpc', 'http', 'sql', 'https']);
-for (const it of corpus) {
-  for (const f of it.files || []) {
-    const m = f.match(/^instrumentation\/(.+?)\/(?:v\d+\/)?[^/]+$/);
-    if (!m) continue;
-    for (const seg of m[1].split('/')) {
-      const s = seg.toLowerCase().replace(/\.(com|org|io|net)$/, '');
-      if (s.length > 2 && !/^v\d+$/.test(s) && !s.includes('.')) TARGETS.add(s);
-    }
-  }
-}
-
-/** Target names mentioned in a title. */
-function targetsIn(item) {
-  const out = new Set();
-  for (const t of tokenize(normTitle(item.title))) if (TARGETS.has(t)) out.add(t);
-  return out;
-}
-
-function titleSim(a, b) {
-  const ta = new Set(tokenize(normTitle(a.title)));
-  const tb = new Set(tokenize(normTitle(b.title)));
-  if (!ta.size || !tb.size) return 0;
-  let inter = 0;
-  for (const t of ta) if (tb.has(t)) inter++;
-  return inter / (ta.size + tb.size - inter);
-}
-
-const daysApart = (a, b) =>
-  Math.abs(new Date(a.createdAt) - new Date(b.createdAt)) / 86400000;
-
-/**
- * DUPLICATE likelihood: is this the same underlying work?
- * Distinct from collision risk. A maintainer closes one of these.
- */
-function duplicateScore(a, b, hit) {
-  const ev = [];
-  let s = 0;
-  const ts = titleSim(a, b);
-  const sameAuthor = a.author === b.author;
-
-  if (normTitle(a.title) === normTitle(b.title)) { s += 0.6; ev.push('identical titles'); }
-  else if (ts >= 0.6) { s += 0.45; ev.push(`title overlap ${(ts * 100).toFixed(0)}%`); }
-  else if (ts >= 0.4) { s += 0.25; ev.push(`title overlap ${(ts * 100).toFixed(0)}%`); }
-
-  const bmRank = hit.from.bm25?.rank;
-  if (bmRank === 1) { s += 0.25; ev.push('top lexical match'); }
-  else if (bmRank <= 3) { s += 0.15; ev.push(`lexical rank ${bmRank}`); }
-  else if (bmRank <= 20) { s += 0.05; ev.push(`lexical rank ${bmRank}`); }
-
-  // The self-refile pattern: one person files the same thing twice, days apart.
-  // Both genuine self-duplicates in this repo (#903/#916, #790/#939) look
-  // exactly like this. The earlier same-author rule DEMOTED these, which was
-  // backwards - it is the strongest duplicate signal available.
-  // Gated on lexical rank, not title similarity. #903 and #916 describe the
-  // same bug with only ~21% title overlap ("GetKeyData/SetKeyData/HasKeyData
-  // panics" vs "HookContext KeyData methods"), so a title threshold misses
-  // them. BM25 reads the body and ranks them adjacent.
-  if (sameAuthor && (ts >= 0.4 || bmRank <= 5)) {
-    const d = daysApart(a, b);
-    if (d <= 14) { s += 0.3; ev.push(`same author, ${d.toFixed(0)}d apart (self-refile)`); }
-    else { s += 0.1; ev.push('same author'); }
-  }
-
-  // An open item duplicating already-landed work is the most actionable
-  // finding there is: the maintainer just closes it.
-  if (a.state === 'OPEN' && b.state !== 'OPEN' && ts >= 0.4) {
-    s += 0.2; ev.push(b.merged ? 'counterpart already MERGED' : 'counterpart already closed');
-  }
-
-  // Different named targets => deliberate series, not duplication. Overrides
-  // the self-refile boost, which otherwise scores these 100.
-  // Each side naming its own rare, specific term means they address different
-  // things. Rarity comes from the BM25 IDF table, so it needs no vocabulary:
-  //   #201 "otelhttptrace" vs #202 "otelhttp"
-  //   #947 "grpc"          vs #931 "http"
-  // Both look like self-refiles by title overlap alone; the discriminating
-  // token is what separates a series from a duplicate.
-  const setA = new Set(tokenize(normTitle(a.title)));
-  const setB = new Set(tokenize(normTitle(b.title)));
-  const onlyA = [...setA].filter((t) => !setB.has(t));
-  const onlyB = [...setB].filter((t) => !setA.has(t));
-  const rare = (toks) =>
-    toks.filter((t) => (idx.bm25.df[t] ?? 0) > 0 && idx.bm25.df[t] <= 25 && t.length >= 4);
-  // Only the explicit sibling-target case is penalised. A broader
-  // "each side has an exclusive rare term" rule was tried and reverted: it
-  // removed #947/#931 (a real series) but also #903/#916 and #790/#939, which
-  // are verified true duplicates. Their titles genuinely differ in wording
-  // while describing the same bug, which is what a duplicate looks like.
-  // Separating those two cases needs semantics, not term statistics - it is
-  // the judge's job, and this scorer deliberately favours recall.
-  void rare;
-  const tA = onlyA.filter((t) => TARGETS.has(t));
-  const tB = onlyB.filter((t) => TARGETS.has(t));
-  if (tA.length && tB.length) {
-    s -= 0.35;
-    ev.push(`different targets (${tA.join(',')} vs ${tB.join(',')}) - likely a series`);
-  }
-
-  // For PRs, an identical changed-file set is near-conclusive: it is the same
-  // edit. This is what separates #909/#853 (same two files, real duplicate)
-  // from #948/#931 (same author and shape, different test files).
-  if (a.kind === 'PR' && b.kind === 'PR') {
-    const { j } = fileJaccard(a, b);
-    if (j >= 0.99) { s += 0.25; ev.push('identical changed-file set'); }
-    else if (j === 0) { s -= 0.2; ev.push('no shared files'); }
-  }
-  return { score: Math.max(0, Math.min(1, s)), ev };
-}
-
-/**
- * COLLISION risk: different work, same lines, will conflict on merge.
- * A maintainer sequences these rather than closing either.
- */
-function collisionScore(a, b) {
-  if (a.kind !== 'PR' || b.kind !== 'PR') return { score: 0, ev: [] };
-  if (a.state !== 'OPEN' || b.state !== 'OPEN') return { score: 0, ev: [] };
-  const { j, shared, weight } = fileJaccard(a, b);
-  if (shared.length === 0) return { score: 0, ev: [] };
-  const ev = [`${shared.length} shared file${shared.length > 1 ? 's' : ''}: ${shared.slice(0, 3).join(', ')}${shared.length > 3 ? ', …' : ''}`];
-  // One shared file is weak evidence on its own (#725/#487 share only README.md).
-  let s = shared.length >= 2 ? 0.5 + 0.4 * j : 0.25 * j;
-  if (weight / shared.length >= 4) { s += 0.1; ev.push('rarely-touched files'); }
-  return { score: Math.min(1, s), ev };
-}
 
 // Legacy single-axis classifier, retained for the older tiered view.
 function classify(a, b, hit) {
