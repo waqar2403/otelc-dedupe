@@ -38,7 +38,19 @@ const clientIp = (req) =>
 createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
-  if (url.pathname === '/api/analyze' && req.method === 'POST') {
+  if (url.pathname === '/api/analyze') {
+    // Every method reaches the handler, so the method-handling branches in
+    // api/analyze.mjs are exercised locally rather than only in theory.
+    if (req.method !== 'POST') {
+      return req.method === 'GET'
+        ? send(res, 200, {
+            endpoint: 'POST /api/analyze',
+            body: { kind: 'ISSUE | PR', title: 'required, <=200 chars', body: 'optional, <=4000 chars', files: 'optional, PR only, changed paths' },
+            headers: { 'x-api-key': 'optional; your own provider key, bypasses the shared budget' },
+            health: 'GET /api/health',
+          })
+        : send(res, 405, { error: 'POST only' });
+    }
     let body = '';
     req.on('data', (c) => {
       body += c;
