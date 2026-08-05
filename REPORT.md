@@ -1,10 +1,10 @@
-# otelc-scout backfill report
+# otelc-dedupe backfill report
 
 Repo: `open-telemetry/opentelemetry-go-compile-instrumentation`
 Corpus: **947 items** (266 issues, 681 PRs), open **and** closed.
 Open items scanned: **159**.
 Retrievers: bm25 + files.
-Fetched 2026-08-04, generated 2026-08-04.
+Fetched 2026-08-04, generated 2026-08-05.
 
 > **These are candidates, not verdicts.** The eval set shows retrieval surfaces
 > genuine non-duplicates constantly: deliberate one-bug-per-PR series on shared
@@ -154,8 +154,9 @@ expanded so `isSetup` matches `isSetup()`), plus changed-file Jaccard for PRs,
 fused by Reciprocal Rank Fusion, top 8 per item.
 Pairs are then tiered by the rules in `scripts/report.mjs`.
 
-Known limits, measured in `npm run eval`:
-- Retrieval surfaces 16/30 labelled negative pairs inside the top 5. Ranking cannot
+Known limits, measured in `npm run eval` (run it for the current figure; it was
+hardcoded here once and went stale the first time the corpus grew):
+- Retrieval surfaces most labelled negative pairs inside the top 5. Ranking cannot
   separate "same file, different bug" from "same bug"; only reading the diff can.
 - Closed items are indexed on purpose. #512 was closed as "Duplicate of #161" and
   that link is the only way to see #817 is the third instance of the same bug.
