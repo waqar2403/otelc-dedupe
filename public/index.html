@@ -12,6 +12,7 @@
   <p class="sub">Check a proposed issue or pull request against everything already filed in
     <code>opentelemetry-go-compile-instrumentation</code>.</p>
   <div id="health" class="health">checking…</div>
+  <div id="fresh" class="health fresh" hidden></div>
 </header>
 
 <main>
@@ -30,6 +31,10 @@
     <label>Description
       <textarea id="body" rows="9" maxlength="4000"
         placeholder="Paste what you were about to file. The more detail, the better the match."></textarea>
+    </label>
+    <label id="files-field" hidden>Changed files <span class="opt">optional, one per line — the strongest signal for a pull request</span>
+      <textarea id="files" rows="3" spellcheck="false"
+        placeholder="tool/internal/instrument/optimize.go&#10;tool/internal/instrument/optimize_test.go"></textarea>
     </label>
     <div class="actions">
       <button type="submit" id="go">Check for duplicates</button>

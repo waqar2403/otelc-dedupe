@@ -1,0 +1,48 @@
+# Weekly rebuild of the base index that ships with the deployment.
+#
+# Weekly, not nightly, on purpose. The server pulls everything filed since the
+# base snapshot at request time (scripts/lib/live.mjs), so the base only has to
+# be recent enough that the tail stays under the 300-item fetch cap. This repo
+# moves at roughly 10-20 items a day, so a week is comfortable and the commit
+# history stays a seventh the size.
+#
+# The commit is also the deploy trigger: Vercel redeploys on push, and the new
+# deployment ships the new data/.
+name: Rebuild index
+
+on:
+  schedule: [{ cron: '0 5 * * 1' }]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: otelc-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - run: npm run fetch
+        env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+      - run: npm run index -- --no-embed
+
+      # A rebuild that breaks the retrieval hard gates must not ship. #817 must
+      # still retrieve #161 across their near-disjoint vocabulary; if it stops
+      # doing that, something regressed and the old index is the safer one.
+      - run: npm run eval
+
+      - name: Commit index
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet && echo "no change" && exit 0
+          git commit -m "chore: rebuild index ($(node -p "JSON.parse(require('fs').readFileSync('data/corpus.json','utf8')).items.length") items)"
+          git push

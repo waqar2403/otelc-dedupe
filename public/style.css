@@ -19,6 +19,9 @@
 }
 
 *{box-sizing:border-box}
+/* `label{display:block}` below outranks the user-agent rule for [hidden], so
+   without this the conditional fields render anyway. */
+[hidden]{display:none !important}
 body{margin:0;background:var(--bg);color:var(--fg);
   font:15px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif}
 code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
@@ -30,6 +33,15 @@ h1{margin:0;font-size:24px;font-weight:650;letter-spacing:-.015em}
   border:1px solid var(--line);border-radius:6px;padding:8px 11px;background:var(--shade)}
 .health b{color:var(--fg);font-weight:600}
 .health .off{color:var(--dim)}
+.fresh{margin-top:6px}
+
+label .opt{text-transform:none;letter-spacing:normal;font-weight:400;opacity:.75}
+#files textarea,#files{font-family:ui-monospace,monospace;font-size:12.5px}
+
+/* Marks an item the base snapshot does not contain, pulled live from GitHub. */
+.tag{display:inline-block;font:10px/1.4 ui-monospace,monospace;text-transform:uppercase;
+  letter-spacing:.06em;padding:1px 5px;border-radius:3px;vertical-align:2px;
+  border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
 
 form{margin:20px 0 12px;border:1px solid var(--line);border-radius:8px;
   padding:18px;background:var(--panel)}

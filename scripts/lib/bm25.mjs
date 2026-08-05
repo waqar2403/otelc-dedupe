@@ -5,6 +5,19 @@ const K1 = 1.2;
 const B = 0.75;
 const TITLE_BOOST = 3;
 
+/** One posting list. Exported so the live delta can build entries that are
+ *  scored on exactly the same footing as the ones baked into the index. */
+export function buildEntry({ number, titleTokens, bodyTokens }) {
+  const tf = new Map();
+  const add = (toks, weight) => {
+    for (const t of toks) tf.set(t, (tf.get(t) || 0) + weight);
+  };
+  add(titleTokens, TITLE_BOOST);
+  add(bodyTokens || [], 1);
+  const len = [...tf.values()].reduce((a, b) => a + b, 0);
+  return { number, tf: Object.fromEntries(tf), len };
+}
+
 export function buildBM25(docs) {
   // docs: [{ number, titleTokens, bodyTokens }]
   const df = new Map();
@@ -12,17 +25,10 @@ export function buildBM25(docs) {
   let totalLen = 0;
 
   for (const d of docs) {
-    const tf = new Map();
-    const add = (toks, weight) => {
-      for (const t of toks) tf.set(t, (tf.get(t) || 0) + weight);
-    };
-    add(d.titleTokens, TITLE_BOOST);
-    add(d.bodyTokens, 1);
-
-    const len = [...tf.values()].reduce((a, b) => a + b, 0);
-    totalLen += len;
-    for (const t of tf.keys()) df.set(t, (df.get(t) || 0) + 1);
-    entries.push({ number: d.number, tf: Object.fromEntries(tf), len });
+    const e = buildEntry(d);
+    totalLen += e.len;
+    for (const t of Object.keys(e.tf)) df.set(t, (df.get(t) || 0) + 1);
+    entries.push(e);
   }
 
   return {

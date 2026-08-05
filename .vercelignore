@@ -1,0 +1,9 @@
+node_modules
+.git
+.github
+eval
+REPORT.md
+REVIEW.md
+*.md
+!README.md
+.claude

@@ -1,0 +1,42 @@
+# Daily maintainer report. Builds a corpus in the runner's workspace, writes
+# REPORT.md, and commits ONLY that.
+#
+# Deliberately does not commit data/. The index is 5.5MB; committing it daily
+# adds ~2GB of history a year to hold a file that the live layer already makes
+# unnecessary between rebuilds. index.yml owns data/, weekly.
+name: Refresh duplicate report
+
+on:
+  schedule: [{ cron: '0 6 * * *' }]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: otelc-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      # The default token reads public repositories, which is all we need.
+      - run: npm run fetch
+        env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+      - run: npm run index -- --no-embed
+      - run: npm run eval
+      - run: npm run report
+
+      - name: Commit report
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -- data/ || true
+          git add REPORT.md
+          git diff --staged --quiet || git commit -m "chore: refresh duplicate report"
+          git push

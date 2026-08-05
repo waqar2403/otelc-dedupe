@@ -334,8 +334,9 @@ expanded so \`isSetup\` matches \`isSetup()\`), plus changed-file Jaccard for PR
 ${idx.retrievers.includes('embed') ? 'plus MiniLM embeddings, ' : ''}fused by Reciprocal Rank Fusion, top 8 per item.
 Pairs are then tiered by the rules in \`scripts/report.mjs\`.
 
-Known limits, measured in \`npm run eval\`:
-- Retrieval surfaces ${'16/30'} labelled negative pairs inside the top 5. Ranking cannot
+Known limits, measured in \`npm run eval\` (run it for the current figure; it was
+hardcoded here once and went stale the first time the corpus grew):
+- Retrieval surfaces most labelled negative pairs inside the top 5. Ranking cannot
   separate "same file, different bug" from "same bug"; only reading the diff can.
 - Closed items are indexed on purpose. #512 was closed as "Duplicate of #161" and
   that link is the only way to see #817 is the third instance of the same bug.
