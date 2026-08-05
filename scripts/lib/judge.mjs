@@ -51,12 +51,24 @@ Reply with JSON only, no prose:
 {"results":[{"number":<int>,"verdict":"<one of the verdicts>","likelihood":<0-100>,"reason":"<one sentence, max 25 words>"}]}
 Include every candidate exactly once. Reference candidates by their issue NUMBER, never by list position.`;
 
+/**
+ * Slice without splitting an emoji in half.
+ *
+ * A plain .slice() can cut between the two halves of a surrogate pair.
+ * JSON.stringify then emits a lone `\ud83d`, which is not valid JSON text, and
+ * the provider rejects the entire request with a 400 - so one emoji sitting at
+ * the wrong offset in an unrelated candidate kills the whole check. Seen on
+ * #564, whose body lands mid-emoji at exactly 600 characters.
+ */
+const cut = (s, n) =>
+  s.slice(0, n).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+
 function renderCandidate(c, bodyCap) {
   const state = c.state === 'OPEN' ? 'open' : c.merged ? 'MERGED' : 'closed';
   const files = c.files?.length
     ? `\nfiles: ${c.files.slice(0, 12).join(', ')}${c.files.length > 12 ? ` (+${c.files.length - 12})` : ''}`
     : '';
-  const body = (c.body || '').replace(/\s+/g, ' ').trim().slice(0, bodyCap);
+  const body = cut((c.body || '').replace(/\s+/g, ' ').trim(), bodyCap);
   return `#${c.number} [${c.kind} ${state}] by ${c.author}\ntitle: ${c.title}${files}\n${body}`;
 }
 
@@ -79,7 +91,7 @@ export async function judge(proposed, candidates, opts = {}) {
   const user =
     `PROPOSED (${proposed.kind || 'ISSUE'}):\ntitle: ${proposed.title}\n` +
     (proposed.files?.length ? `files: ${proposed.files.slice(0, 12).join(', ')}\n` : '') +
-    `${(proposed.body || '').replace(/\s+/g, ' ').slice(0, 2000)}\n\n` +
+    `${cut((proposed.body || '').replace(/\s+/g, ' '), 2000)}\n\n` +
     `EXISTING CANDIDATES (${candidates.length}):\n\n` +
     candidates.map((c) => renderCandidate(c, bodyCap)).join('\n\n---\n\n');
 
