@@ -102,7 +102,7 @@ unused embedding package out of the bundle.
 |---|---|
 | `DEEPSEEK_API_KEY` | enables scoring |
 | `GITHUB_TOKEN` | a read-only PAT; enables the live layer |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Vercel KV or Upstash — **see below** |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Vercel KV or Upstash — **see below**. Injected by the integration; any prefix works. |
 
 Rate limits and the daily cap used to live in a `Map`. On one long-running
 process that is correct; on serverless it is not a limit at all, because every
@@ -171,7 +171,7 @@ Full review, including everything found and fixed: [REVIEW.md](REVIEW.md).
 | `OTELC_MONTHLY_USD` | `3` | Hard spend ceiling, charged from actual token usage. |
 | `OTELC_GLOBAL_DAY` | `300` | Checks per day on the shared key. |
 | `OTELC_PER_IP_HOUR` / `_DAY` | `20` / `60` | Per-caller limits. |
-| `KV_REST_API_URL` / `_TOKEN` | — | Vercel KV or Upstash. Required for the caps to hold on serverless. |
+| `KV_REST_API_URL` / `_TOKEN` | — | Vercel KV or Upstash. Required for the caps to hold on serverless. Any `<PREFIX>_REST_API_URL` + `_TOKEN` pair is picked up, so a custom integration prefix works too. |
 | `PORT` | `3000` | |
 
 Never commit a key. Pass it in the environment, or send `x-api-key` per request.

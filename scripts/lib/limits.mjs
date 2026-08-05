@@ -12,9 +12,36 @@
 // reported, so a deployment running without a store is visibly unprotected
 // rather than silently so.
 
-const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
-const DURABLE = !!(KV_URL && KV_TOKEN);
+/**
+ * Find the Redis REST credentials whatever they ended up being called.
+ *
+ * Vercel's marketplace integrations let you pick the prefix for the variables
+ * they inject, so the names are not knowable in advance: `KV_REST_API_URL`,
+ * `UPSTASH_REDIS_REST_URL` and `STORAGE_REST_API_URL` are all the same endpoint
+ * under different labels. Guessing wrong here fails in the worst possible way -
+ * the app runs fine and just quietly has no spending ceiling - so match on the
+ * shape of the name rather than on a fixed list.
+ */
+function discoverStore() {
+  const known = [
+    ['KV_REST_API_URL', 'KV_REST_API_TOKEN'],
+    ['UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'],
+  ];
+  for (const [u, t] of known) {
+    if (process.env[u] && process.env[t]) return { url: process.env[u], token: process.env[t], via: u };
+  }
+  for (const k of Object.keys(process.env)) {
+    if (!k.endsWith('_REST_API_URL')) continue;
+    const t = `${k.slice(0, -4)}_TOKEN`;           // ..._REST_API_URL -> ..._REST_API_TOKEN
+    if (process.env[k] && process.env[t]) return { url: process.env[k], token: process.env[t], via: k };
+  }
+  return null;
+}
+
+const STORE = discoverStore();
+const KV_URL = STORE?.url || '';
+const KV_TOKEN = STORE?.token || '';
+const DURABLE = !!STORE;
 
 /** USD per million tokens. Verified against api-docs.deepseek.com/quick_start/pricing
  *  on 2026-08-04. Cache hits are cheaper; charging the miss rate over-estimates,
@@ -153,3 +180,6 @@ export async function usedToday() {
 }
 
 export const limiterKind = () => (DURABLE ? 'kv' : 'memory');
+
+/** Which env var the credentials came from. Operator detail, for the selftest. */
+export const limiterSource = () => STORE?.via || null;

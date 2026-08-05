@@ -11,7 +11,7 @@ import { getStore, getBase } from './lib/kb.mjs';
 import { buildBM25 } from './lib/bm25.mjs';
 import { tokenize } from './lib/text.mjs';
 import { analyze, CAP } from './lib/api.mjs';
-import { limiterKind } from './lib/limits.mjs';
+import { limiterKind, limiterSource } from './lib/limits.mjs';
 import { PROVIDERS } from './lib/judge.mjs';
 
 let fails = 0;
@@ -104,9 +104,14 @@ if (!process.env[PROVIDERS[provider].env]) warn('judge', `no ${PROVIDERS[provide
 else ok('judge configured', provider);
 
 if (limiterKind() === 'memory') {
-  warn('limiter', 'in-memory. Fine for one long-running process; on serverless every cold instance resets the counters. Set KV_REST_API_URL and KV_REST_API_TOKEN.');
+  const near = Object.keys(process.env).filter((k) => /REDIS|UPSTASH|_KV_|^KV_|REST_API/.test(k));
+  warn('limiter',
+    'in-memory. Fine for one long-running process; on serverless every cold instance resets the counters.'
+    + (near.length
+      ? ` Found ${near.join(', ')} but no usable URL+TOKEN pair — check the integration's variable prefix.`
+      : ' Connect Upstash Redis or Vercel KV.'));
 } else {
-  ok('limiter', `durable (${limiterKind()})`);
+  ok('limiter', `durable, credentials from ${limiterSource()}`);
 }
 ok('caps', `${CAP.perIpHour}/ip/hr, ${CAP.perIpDay}/ip/day, ${CAP.globalDay}/day, $${CAP.monthlyUsd}/month`);
 
