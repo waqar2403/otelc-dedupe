@@ -24,6 +24,16 @@ const send = (res, status, obj) => {
 };
 
 export default async function handler(req, res) {
+  // A GET here is someone poking at the API by hand. Describe it rather than
+  // refusing: the endpoint is not secret and the shape is not guessable.
+  if (req.method === 'GET') {
+    return send(res, 200, {
+      endpoint: 'POST /api/analyze',
+      body: { kind: 'ISSUE | PR', title: 'required, <=200 chars', body: 'optional, <=4000 chars', files: 'optional, PR only, changed paths' },
+      headers: { 'x-api-key': 'optional; your own provider key, bypasses the shared budget' },
+      health: 'GET /api/health',
+    });
+  }
   if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
 
   let input;
