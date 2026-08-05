@@ -1,4 +1,4 @@
-# prior art
+# otelc-dedupe
 
 Finds work that already exists in
 [`open-telemetry/opentelemetry-go-compile-instrumentation`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation)
@@ -85,9 +85,9 @@ npm run judge-eval    # scoring: separation and calibration (needs an API key)
 | Variable | Default | Purpose |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | — | Enables scoring. Without it you get retrieval only. |
-| `PA_PROVIDER` | `deepseek` | `deepseek` or `groq` |
-| `PA_MODEL` | `deepseek-v4-flash` | Model override |
-| `PA_THINKING` | off | Enable model reasoning. Costs ~2.4x for no measured accuracy gain. |
+| `OTELC_PROVIDER` | `deepseek` | `deepseek` or `groq` |
+| `OTELC_MODEL` | `deepseek-v4-flash` | Model override |
+| `OTELC_THINKING` | off | Enable model reasoning. Costs ~2.4x for no measured accuracy gain. |
 | `PORT` | `3000` | |
 
 Never commit a key. Pass it in the environment, or send `x-api-key` per request.

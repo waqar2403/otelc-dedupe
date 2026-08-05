@@ -38,7 +38,7 @@ async function queryFor(num) {
   return { it, q };
 }
 
-console.log(`\notelc-prior-art eval   corpus=${corpus.length}  K=${K}  retrievers=${[
+console.log(`\notelc-dedupe eval   corpus=${corpus.length}  K=${K}  retrievers=${[
   'bm25', 'files', ...(store.vectors ? ['embed'] : []),
 ].join('+')}\n`);
 

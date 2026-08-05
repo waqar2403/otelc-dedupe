@@ -3,7 +3,7 @@
 // product surfaces a likelihood rather than a verdict.
 //
 //   node scripts/judge-eval.mjs                   thinking off (default, ~6x cheaper)
-//   PA_THINKING=1 node scripts/judge-eval.mjs  thinking on, for comparison
+//   OTELC_THINKING=1 node scripts/judge-eval.mjs  thinking on, for comparison
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,7 +16,7 @@ const cf = JSON.parse(readFileSync(join(ROOT, 'data/corpus.json'), 'utf8'));
 const idx = JSON.parse(readFileSync(join(ROOT, 'data/index.json'), 'utf8'));
 const byNum = new Map(cf.items.map((i) => [i.number, i]));
 const store = { corpus: cf.items, bm25: idx.bm25, vectors: idx.vectors };
-const PROVIDER = process.env.PA_PROVIDER || 'deepseek';
+const PROVIDER = process.env.OTELC_PROVIDER || 'deepseek';
 
 // want: true  = a maintainer would close one as redundant
 //       false = deliberately distinct work
@@ -38,7 +38,7 @@ const CASES = [
 ];
 
 const K = 12;
-const thinking = !!process.env.PA_THINKING;
+const thinking = !!process.env.OTELC_THINKING;
 let calls = 0, promptTok = 0, complTok = 0;
 const scored = [];
 

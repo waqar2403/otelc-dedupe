@@ -8,7 +8,7 @@
 
 // Model ids verified against api-docs.deepseek.com/quick_start/pricing on
 // 2026-08-04. v4-flash is $0.14/M in, $0.28/M out; v4-pro is $0.435/$0.87.
-// Override either with PA_MODEL.
+// Override either with OTELC_MODEL.
 export const PROVIDERS = {
   deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', env: 'DEEPSEEK_API_KEY' },
   groq: { base: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', env: 'GROQ_API_KEY' },
@@ -88,7 +88,7 @@ export async function judge(proposed, candidates, opts = {}) {
     signal: opts.signal,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: opts.model || process.env.PA_MODEL || p.model,
+      model: opts.model || process.env.OTELC_MODEL || p.model,
       messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }],
       response_format: { type: 'json_object' },
       temperature: 0,
@@ -97,8 +97,8 @@ export async function judge(proposed, candidates, opts = {}) {
       //   thinking on  -> 1678 reasoning + 315 answer = 1993 completion tokens
       //   thinking off -> 0 reasoning + 322 answer     =  322 completion tokens
       // Same 12 verdicts either way, ~6x the output cost. Off by default;
-      // set PA_THINKING=1 to compare.
-      ...(opts.provider !== 'groq' && !process.env.PA_THINKING
+      // set OTELC_THINKING=1 to compare.
+      ...(opts.provider !== 'groq' && !process.env.OTELC_THINKING
         ? { thinking: { type: 'disabled' } }
         : {}),
       // deepseek-v4-* are REASONING models: max_tokens covers reasoning tokens
@@ -153,7 +153,7 @@ export async function judge(proposed, candidates, opts = {}) {
   return {
     results,
     usage: data.usage || null,
-    model: opts.model || process.env.PA_MODEL || p.model,
+    model: opts.model || process.env.OTELC_MODEL || p.model,
     dropped: (parsed.results || []).length - results.length,
   };
 }

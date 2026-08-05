@@ -1,5 +1,5 @@
 {
-  "name": "otelc-prior-art",
+  "name": "otelc-dedupe",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "otelc-prior-art", "runtimeExecutable": "node", "runtimeArgs": ["server.mjs"], "port": 3000 }
+    { "name": "otelc-dedupe", "runtimeExecutable": "node", "runtimeArgs": ["server.mjs"], "port": 3000 }
   ]
 }
