@@ -1,10 +1,10 @@
 # otelc-dedupe backfill report
 
 Repo: `open-telemetry/opentelemetry-go-compile-instrumentation`
-Corpus: **970 items** (279 issues, 691 PRs), open **and** closed.
-Open items scanned: **125**.
+Corpus: **973 items** (280 issues, 693 PRs), open **and** closed.
+Open items scanned: **123**.
 Retrievers: bm25 + files.
-Fetched 2026-08-05, generated 2026-08-05.
+Fetched 2026-08-06, generated 2026-08-06.
 
 > **These are candidates, not verdicts.** The eval set shows retrieval surfaces
 > genuine non-duplicates constantly: deliberate one-bug-per-PR series on shared
@@ -12,7 +12,7 @@ Fetched 2026-08-05, generated 2026-08-05.
 > needs a human read. Tiers reflect signal strength, not confidence that a pair
 > is a duplicate.
 
-## Likely duplicates (70)
+## Likely duplicates (69)
 
 Same underlying work. The action is usually to close one and link it to the other.
 Scored on title similarity, lexical rank, the same-author self-refile pattern, and
@@ -45,7 +45,6 @@ whether the counterpart has already landed.
 | **55** | [#201](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/201) ISSUE open<br>Add join-points to support opentelemetry-go-contrib/instrumentat | [#203](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/203) ISSUE closed<br>Add join-points to support opentelemetry-go-contrib/instrumentat | title overlap 57%; lexical rank 3; same author, 0d apart (self-refile); counterpart already closed; different targets (net,http vs grpc) - likely a series |
 | **50** | [#745](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/745) ISSUE open<br>ADR 0006: Semconv Telemetry Contract Organization | [#801](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/801) PR open<br>docs(adr): add semconv telemetry contract organization | title overlap 67%; lexical rank 6 |
 | **50** | [#811](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/811) PR open<br>docs(config): document run-time instrumentation environment vari | [#856](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/856) PR merged<br>docs(config): document runtime instrumentation env vars | top lexical match; identical changed-file set |
-| **50** | [#772](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/772) PR open<br>fix(instrumentation): emit HTTP status code for anthropic error. | [#966](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/966) PR open<br>fix(instrumentation): emit numeric HTTP status code for openai e | title overlap 70%; top lexical match; no shared files |
 | **50** | [#805](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/805) PR open<br>fix(instrumentation): skip anthropic span creation for unparseab | [#866](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/866) PR merged<br>fix(instrumentation/openai): skip span creation when model is em | title overlap 57%; top lexical match; counterpart already MERGED; no shared files |
 | **45** | [#541](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/541) ISSUE open<br>feat(tool/rule): consume structured where/do schema in rule cons | [#546](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/546) ISSUE open<br>feat(tool/rule): derive rule type from do modifier name (not fie | lexical rank 2; same author, 0d apart (self-refile) |
 | **45** | [#541](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/541) ISSUE open<br>feat(tool/rule): consume structured where/do schema in rule cons | [#542](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/542) ISSUE open<br>feat(tool/rule): central registry of valid selectors and modifie | lexical rank 3; same author, 0d apart (self-refile) |
@@ -67,7 +66,7 @@ whether the counterpart has already landed.
 | **45** | [#904](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/904) PR open<br>fix(hook): use safe type assertions in GetKeyData, SetKeyData, a | [#916](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/916) ISSUE open<br>fix(runtime): prevent type assertion panic in HookContext KeyDat | lexical rank 3; same author, 1d apart (self-refile) |
 | **45** | [#908](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/908) ISSUE open<br>fix(tool/internal/imports): increase scanner buffer capacity in  | [#853](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/853) PR merged<br>fix(imports): check return error of file.Close() in WriteFile | lexical rank 2; same author, 5d apart (self-refile) |
 | **40** | [#725](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/725) PR open<br>docs: Update otelc command path in README | [#953](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/953) PR merged<br>docs(readme): fix otecl path for demo app | lexical rank 2; identical changed-file set |
-| **40** | [#772](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/772) PR open<br>fix(instrumentation): emit HTTP status code for anthropic error. | [#965](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/965) ISSUE open<br>bug(instrumentation): openai-go middlewares emit full HTTP statu | title overlap 50%; lexical rank 2 |
+| **40** | [#772](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/772) PR open<br>fix(instrumentation): emit HTTP status code for anthropic error. | [#965](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/965) ISSUE open<br>bug(instrumentation): openai-go middlewares emit full HTTP statu | title overlap 50%; lexical rank 3 |
 | **40** | [#789](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/789) PR open<br>fix(tool): resolve canFlattenTJump panic on unnamed HookContext  | [#883](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/883) PR merged<br>fix(tool): resolve canFlattenTJump false positives on unrelated  | lexical rank 2; identical changed-file set |
 | **35** | [#164](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/164) ISSUE open<br>Reach feature parity with original projects | [#346](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/346) ISSUE open<br>OP4: Join point composition & filtering | top lexical match; same author |
 | **35** | [#541](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/541) ISSUE open<br>feat(tool/rule): consume structured where/do schema in rule cons | [#543](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation/issues/543) ISSUE open<br>feat(tool): rule schema linter (detect invalid selectors / modif | lexical rank 4; same author, 0d apart (self-refile) |
