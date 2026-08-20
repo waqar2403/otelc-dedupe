@@ -1,10 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
   "outputDirectory": "public",
   "installCommand": "npm install --omit=optional",
   "functions": {
     "api/*.mjs": {
-      "memory": 1024,
       "maxDuration": 60,
       "includeFiles": "data/**"
     }

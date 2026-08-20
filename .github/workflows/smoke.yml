@@ -1,0 +1,42 @@
+# Is the deployed site actually serving?
+#
+# A green Vercel build is not evidence of that. On 2026-08-13 and again on
+# 2026-08-19 the build succeeded, reported Ready, and shipped a deployment
+# where every route returned FUNCTION_INVOCATION_FAILED: the zero-config Node
+# builder picked public/app.js, a browser script, as the root entrypoint and
+# bundled it as the single catch-all function. Static assets kept serving, so
+# nothing looked wrong from the outside. The 08-19 breakage went unnoticed
+# until someone opened the page a day later.
+#
+# vercel.json now pins the entrypoint, which closes that specific hole. This
+# workflow covers the general case: the deployment is checked from outside,
+# on a schedule, whatever the cause.
+#
+# Spends nothing. GET endpoints only, never POST /api/analyze.
+name: Smoke
+
+on:
+  schedule: [{ cron: '20 */6 * * *' }]
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: otelc-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      # On push, wait for Vercel to build and swap the alias before probing,
+      # otherwise this races the deploy and checks the previous build.
+      - name: Wait for the deploy to land
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - run: npm run smoke

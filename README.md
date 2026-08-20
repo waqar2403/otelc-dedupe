@@ -96,6 +96,34 @@ follow `readFileSync` paths, and without it the function ships with no corpus),
 `maxDuration: 60` (the judge takes 5-20s), and `--omit=optional` to keep the
 unused embedding package out of the bundle.
 
+`framework: null` and an empty `buildCommand` are load-bearing. Left to detect,
+Vercel's Node builder looks for a project "root entrypoint" and bundles that one
+file as a single catch-all function. This repo gives it two plausible answers,
+`server.mjs` and `public/app.js`, and which one it picks has changed with the
+build image's CLI version: 58.1.0 chose `server.mjs`, 58.9.5 and 59.1.4 chose
+`public/app.js`. The second is the browser script, so the deployment answered
+every route with `FUNCTION_INVOCATION_FAILED` while static assets kept serving
+and the build was still reported green. It happened on 2026-08-13, reverted
+itself, and happened again on 2026-08-19. Selecting "Other" with the build step
+skipped turns the detection off, and the only functions are the ones `functions`
+declares. A build log that mentions a "root entrypoint" means the pin stopped
+working.
+
+## Checking a deployment
+
+`npm run selftest` gates what you are about to ship. It says nothing about what
+is already running, and a Vercel build can go green while serving nothing, so
+the deployment is also checked from outside:
+
+```bash
+npm run smoke                                  # production
+npm run smoke -- https://your-preview.vercel.app
+```
+
+It asserts the page loads, the corpus shipped, the limiter is `kv` rather than
+per-instance, and the judge has a key. GET only, so it spends nothing.
+`.github/workflows/smoke.yml` runs it every six hours and on every push.
+
 **Set these before the first deploy:**
 
 | | |
@@ -210,6 +238,7 @@ scripts/report.mjs     batch scan -> REPORT.md
 scripts/eval.mjs       retrieval eval
 scripts/judge-eval.mjs scoring eval
 scripts/selftest.mjs   pre-deploy preflight, spends nothing
+scripts/smoke.mjs      post-deploy check of a live URL, spends nothing
 eval/dataset.json      labelled ground truth
 ```
 

@@ -16,7 +16,8 @@
     "judge-eval": "node scripts/judge-eval.mjs",
     "prod-eval": "node scripts/prod-eval.mjs",
     "rules-vs-judge": "node scripts/rules-vs-judge.mjs",
-    "selftest": "node scripts/selftest.mjs"
+    "selftest": "node scripts/selftest.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "^3.0.0"
