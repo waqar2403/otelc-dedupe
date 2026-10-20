@@ -243,9 +243,8 @@ eval/dataset.json      labelled ground truth
 ```
 
 `.github/workflows/index.yml` rebuilds the base index weekly and commits it, which
-is also what triggers a redeploy. `report.yml` regenerates REPORT.md nightly and
-commits only that — the index is 5.5MB and committing it daily would add ~2GB of
-history a year for a file the live layer already keeps current.
+is also what triggers a redeploy. Run `npm run report` locally to regenerate
+REPORT.md.
 
 A long-running `server.mjs` reloads `data/` on change without a restart. Serverless
 deployments are immutable, so there the redeploy is the reload.
