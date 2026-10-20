@@ -66,7 +66,7 @@ So the knowledge base is two layers:
 
 | | |
 |---|---|
-| **base** | the committed snapshot, rebuilt weekly by `.github/workflows/index.yml` |
+| **base** | the committed snapshot in `data/` |
 | **live** | everything created or edited since, pulled per request from GitHub's REST API, cached 5 minutes |
 
 The delta is folded into the BM25 statistics **exactly**: a superseded document
@@ -122,7 +122,6 @@ npm run smoke -- https://your-preview.vercel.app
 
 It asserts the page loads, the corpus shipped, the limiter is `kv` rather than
 per-instance, and the judge has a key. GET only, so it spends nothing.
-`.github/workflows/smoke.yml` runs it every six hours and on every push.
 
 **Set these before the first deploy:**
 
@@ -242,9 +241,9 @@ scripts/smoke.mjs      post-deploy check of a live URL, spends nothing
 eval/dataset.json      labelled ground truth
 ```
 
-`.github/workflows/index.yml` rebuilds the base index weekly and commits it, which
-is also what triggers a redeploy. Run `npm run report` locally to regenerate
-REPORT.md.
+To rebuild the base index, run `npm run fetch`, `npm run index -- --no-embed` and
+`npm run eval`, then commit `data/`. The commit is also what triggers a redeploy.
+Run `npm run report` locally to regenerate REPORT.md.
 
 A long-running `server.mjs` reloads `data/` on change without a restart. Serverless
 deployments are immutable, so there the redeploy is the reload.
